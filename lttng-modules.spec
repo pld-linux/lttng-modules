@@ -4,14 +4,16 @@
 %bcond_without	allprobes	# all probes build (some probes, e.g. fs, need full kernel source)
 %bcond_with	verbose		# verbose build (V=1)
 #
+%define		rel		2
+%define		pname		lttng-modules
 Summary:	LTTng 2.x kernel modules
 Summary(pl.UTF-8):	Moduły jądra LTTng 2.x
-Name:		lttng-modules
+Name:		%{pname}%{_alt_kernel}
 Version:	2.2.1
-Release:	1
+Release:	%{rel}
 License:	GPL v2
 Group:		Base/Kernel
-Source0:	http://lttng.org/files/lttng-modules/%{name}-%{version}.tar.bz2
+Source0:	http://lttng.org/files/lttng-modules/%{pname}-%{version}.tar.bz2
 # Source0-md5:	a659eac662d8a5e6084a4ec9897c8250
 URL:		http://lttng.org/
 %if %{with dist_kernel}
@@ -32,7 +34,7 @@ Moduły jądra LTTng 2.x.
 %package -n kernel%{_alt_kernel}-lttng
 Summary:	LTTng 2.x modules for Linux kernel
 Summary(pl.UTF-8):	Moduły LTTng 2.x dla jądra Linuksa
-Release:	%{release}@%{_kernel_ver_str}
+Release:	%{rel}@%{_kernel_ver_str}
 Group:		Base/Kernel
 Requires(post,postun):	/sbin/depmod
 %if %{with dist_kernel}
@@ -47,7 +49,7 @@ LTTng 2.x modules for Linux kernel.
 Moduły LTTng 2.x dla jądra Linuksa.
 
 %prep
-%setup -q
+%setup -q -n %{pname}-%{version}
 
 %build
 %{__make} \
@@ -74,6 +76,7 @@ rm -rf $RPM_BUILD_ROOT
 %files -n kernel%{_alt_kernel}-lttng
 %defattr(644,root,root,755)
 %doc ChangeLog LICENSE README TODO
+%dir /lib/modules/%{_kernel_ver}/kernel/lttng
 /lib/modules/%{_kernel_ver}/kernel/lttng/lttng-ring-buffer-*.ko*
 /lib/modules/%{_kernel_ver}/kernel/lttng/lttng-statedump.ko*
 /lib/modules/%{_kernel_ver}/kernel/lttng/lttng-tracer.ko*
