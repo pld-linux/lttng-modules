@@ -4,6 +4,10 @@
 %bcond_without	allprobes	# all probes build (some probes, e.g. fs, need full kernel source)
 %bcond_with	verbose		# verbose build (V=1)
 #
+%if "%{_alt_kernel}" != "%{nil}"
+%undefine	with_userspace
+%endif
+
 %define		rel		2
 %define		pname		lttng-modules
 Summary:	LTTng 2.x kernel modules
