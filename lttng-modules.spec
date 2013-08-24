@@ -8,7 +8,7 @@
 %undefine	with_userspace
 %endif
 
-%define		rel		4
+%define		rel		5
 %define		pname		lttng-modules
 Summary:	LTTng 2.x kernel modules
 Summary(pl.UTF-8):	Moduły jądra LTTng 2.x
