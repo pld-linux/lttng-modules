@@ -8,17 +8,17 @@
 %undefine	with_userspace
 %endif
 
-%define		rel		8
-%define		pname		lttng-modules
+%define		rel	1
+%define		pname	lttng-modules
 Summary:	LTTng 2.x kernel modules
 Summary(pl.UTF-8):	Moduły jądra LTTng 2.x
 Name:		%{pname}%{_alt_kernel}
-Version:	2.2.1
+Version:	2.3.0
 Release:	%{rel}
 License:	GPL v2
 Group:		Base/Kernel
 Source0:	http://lttng.org/files/lttng-modules/%{pname}-%{version}.tar.bz2
-# Source0-md5:	a659eac662d8a5e6084a4ec9897c8250
+# Source0-md5:	9c7e9d730020a0b94514eaed0927332a
 URL:		http://lttng.org/
 %if %{with dist_kernel}
 BuildRequires:	kernel%{_alt_kernel}-module-build >= 3:2.6.38
