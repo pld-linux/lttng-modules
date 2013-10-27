@@ -4,15 +4,6 @@
 %bcond_without	allprobes	# all probes build (some probes, e.g. fs, need full kernel source)
 %bcond_with	verbose		# verbose build (V=1)
 
-# The goal here is to have main, userspace, package built once with
-# simple release number, and only rebuild kernel packages with kernel
-# version as part of release number, without the need to bump release
-# with every kernel change.
-%if 0%{?_pld_builder:1} && %{with kernel} && %{with userspace}
-%{error:kernel and userspace cannot be built at the same time on PLD builders}
-exit 1
-%endif
-
 %if "%{_alt_kernel}" != "%{nil}"
 %if 0%{?build_kernels:1}
 %{error:alt_kernel and build_kernels are mutually exclusive}
@@ -35,7 +26,7 @@ Summary:	LTTng 2.x kernel modules
 Summary(pl.UTF-8):	Moduły jądra LTTng 2.x
 Name:		%{pname}%{_alt_kernel}
 Version:	2.3.0
-Release:	%{rel}%{?with_kernel:@%{_kernel_ver_str}}
+Release:	%{rel}@%{_kernel_ver_str}
 License:	GPL v2
 Group:		Base/Kernel
 Source0:	http://lttng.org/files/lttng-modules/%{pname}-%{version}.tar.bz2
