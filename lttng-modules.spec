@@ -25,13 +25,12 @@ exit 1
 Summary:	LTTng 2.x kernel modules
 Summary(pl.UTF-8):	Moduły jądra LTTng 2.x
 Name:		%{pname}%{_alt_kernel}
-Version:	2.3.4
+Version:	2.4.0
 Release:	%{rel}@%{_kernel_ver_str}
 License:	GPL v2
 Group:		Base/Kernel
 Source0:	http://lttng.org/files/lttng-modules/%{pname}-%{version}.tar.bz2
-# Source0-md5:	6941d6c2b149d9b301e388a9b4a99470
-Patch0:		%{name}-linux-3.13.patch
+# Source0-md5:	dbe114398ec3a187dba3324802619ea8
 URL:		http://lttng.org/
 %if %{with dist_kernel}
 BuildRequires:	kernel%{_alt_kernel}-module-build >= 3:2.6.38
@@ -101,7 +100,6 @@ p=`pwd`\
 
 %prep
 %setup -q -n %{pname}-%{version}
-%patch0 -p1
 
 %build
 %{expand:%bkpkg}
