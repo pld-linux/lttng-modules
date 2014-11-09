@@ -31,6 +31,7 @@ License:	GPL v2
 Group:		Base/Kernel
 Source0:	http://lttng.org/files/lttng-modules/%{pname}-%{version}.tar.bz2
 # Source0-md5:	2d99bb7311ba92e82e3b675f0b8dee7d
+Patch0:		build.patch
 URL:		http://lttng.org/
 %if %{with dist_kernel}
 BuildRequires:	kernel%{_alt_kernel}-module-build >= 3:2.6.38
@@ -73,6 +74,7 @@ Moduły LTTng 2.x dla jądra Linuksa.\
 %dir /lib/modules/%{_kernel_ver}/kernel/lttng/lib\
 /lib/modules/%{_kernel_ver}/kernel/lttng/lib/lttng-lib-ring-buffer.ko*\
 %dir /lib/modules/%{_kernel_ver}/kernel/lttng/probes\
+/lib/modules/%{_kernel_ver}/kernel/lttng/probes/lttng-ftrace.ko*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/probes/lttng-kprobes.ko*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/probes/lttng-kretprobes.ko*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/probes/lttng-probe-*.ko*\
@@ -100,6 +102,7 @@ p=`pwd`\
 
 %prep
 %setup -q -n %{pname}-%{version}
+%patch0 -p1
 
 %build
 %{expand:%bkpkg}
