@@ -1,5 +1,5 @@
---- /home/users/baggins/devel/PLD/rpm/BUILD/lttng-modules-2.5.1/instrumentation/events/lttng-module/compaction.h~	2014-10-20 22:48:47.000000000 +0200
-+++ /home/users/baggins/devel/PLD/rpm/BUILD/lttng-modules-2.5.1/instrumentation/events/lttng-module/compaction.h	2014-11-23 15:28:33.501139643 +0100
+--- lttng-modules-2.5.1/instrumentation/events/lttng-module/compaction.h~	2014-10-20 22:48:47.000000000 +0200
++++ lttng-modules-2.5.1/instrumentation/events/lttng-module/compaction.h	2014-11-23 15:28:33.501139643 +0100
 @@ -46,7 +46,7 @@
  	TP_ARGS(nr_scanned, nr_taken)
  )
