@@ -20,20 +20,20 @@ exit 1
 %define		kpkg	%(echo %{_build_kernels} | tr , '\\n' | while read n ; do echo %%undefine alt_kernel ; [ -z "$n" ] || echo %%define alt_kernel $n ; echo %%kernel_pkg ; done)
 %define		bkpkg	%(echo %{_build_kernels} | tr , '\\n' | while read n ; do echo %%undefine alt_kernel ; [ -z "$n" ] || echo %%define alt_kernel $n ; echo %%build_kernel_pkg ; done)
 
-%define		rel	3
+%define		rel	1
 %define		pname	lttng-modules
 Summary:	LTTng 2.x kernel modules
 Summary(pl.UTF-8):	Moduły jądra LTTng 2.x
 Name:		%{pname}%{_alt_kernel}
-Version:	2.5.1
+Version:	2.5.2
 Release:	%{rel}@%{_kernel_ver_str}
 License:	GPL v2
 Group:		Base/Kernel
 Source0:	http://lttng.org/files/lttng-modules/%{pname}-%{version}.tar.bz2
-# Source0-md5:	2d99bb7311ba92e82e3b675f0b8dee7d
+# Source0-md5:	74d2fd161fdbf3426c6af5a36a774d4a
 Patch0:		build.patch
 Patch1:		linux-3.17.patch
-Patch2:		linux-3.14.25.patch
+Patch2:		linux-3.18.patch
 URL:		http://lttng.org/
 %if %{with dist_kernel}
 BuildRequires:	kernel%{_alt_kernel}-module-build >= 3:2.6.38
