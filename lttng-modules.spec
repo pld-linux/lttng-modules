@@ -1,6 +1,5 @@
 #
 # Conditional build:
-%bcond_without	dist_kernel	# allow non-distribution kernel
 %bcond_without	allprobes	# all probes build (some probes, e.g. fs, need full kernel source)
 %bcond_with	verbose		# verbose build (V=1)
 
@@ -35,7 +34,7 @@ Patch0:		build.patch
 Patch1:		linux-3.17.patch
 Patch2:		linux-3.18.patch
 URL:		http://lttng.org/
-%if %{with dist_kernel}
+%if %{with kernel}
 BuildRequires:	kernel%{_alt_kernel}-module-build >= 3:2.6.38
 %{?with_allprobes:BuildRequires:	kernel%{_alt_kernel}-source >= 3:2.6.38}
 %endif
@@ -55,10 +54,8 @@ Summary(pl.UTF-8):	Moduły LTTng 2.x dla jądra Linuksa\
 Release:	%{rel}@%{_kernel_ver_str}\
 Group:		Base/Kernel\
 Requires(post,postun):	/sbin/depmod\
-%if %{with dist_kernel}\
 %requires_releq_kernel\
 Requires(postun):	%releq_kernel\
-%endif\
 \
 %description -n kernel%{_alt_kernel}-lttng\
 LTTng 2.x modules for Linux kernel.\
