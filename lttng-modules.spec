@@ -3,21 +3,8 @@
 %bcond_without	allprobes	# all probes build (some probes, e.g. fs, need full kernel source)
 %bcond_with	verbose		# verbose build (V=1)
 
-%if "%{_alt_kernel}" != "%{nil}"
-%if 0%{?build_kernels:1}
-%{error:alt_kernel and build_kernels are mutually exclusive}
-exit 1
-%endif
-%global		_build_kernels		%{alt_kernel}
-%else
-%global		_build_kernels		%{?build_kernels:,%{?build_kernels}}
-%endif
-
 # nothing to be placed to debuginfo package
 %define		_enable_debug_packages	0
-
-%define		kpkg	%(echo %{_build_kernels} | tr , '\\n' | while read n ; do echo %%undefine alt_kernel ; [ -z "$n" ] || echo %%define alt_kernel $n ; echo %%kernel_pkg ; done)
-%define		bkpkg	%(echo %{_build_kernels} | tr , '\\n' | while read n ; do echo %%undefine alt_kernel ; [ -z "$n" ] || echo %%define alt_kernel $n ; echo %%build_kernel_pkg ; done)
 
 %define		rel	1
 %define		pname	lttng-modules
@@ -34,11 +21,9 @@ Patch0:		build.patch
 Patch1:		linux-3.17.patch
 Patch2:		linux-3.18.patch
 URL:		http://lttng.org/
-%if %{with kernel}
-BuildRequires:	kernel%{_alt_kernel}-module-build >= 3:2.6.38
-%{?with_allprobes:BuildRequires:	kernel%{_alt_kernel}-source >= 3:2.6.38}
-%endif
-BuildRequires:	rpmbuild(macros) >= 1.678
+%{expand:%buildrequires_kernel kernel%%{_alt_kernel}-module-build >= 3:2.6.38}
+%{?with_allprobes:%{expand:%buildrequires_kernel kernel%%{_alt_kernel}-source >= 3:2.6.38}}
+BuildRequires:	rpmbuild(macros) >= 1.701
 BuildRoot:	%{tmpdir}/%{name}-%{version}-root-%(id -u -n)
 
 %description
@@ -97,7 +82,7 @@ p=`pwd`\
 	KERNELDIR=%{_kernelsrcdir}\
 %{nil}
 
-%{expand:%kpkg}
+%{expand:%create_kernel_packages}
 
 %prep
 %setup -q -n %{pname}-%{version}
@@ -106,7 +91,7 @@ p=`pwd`\
 %patch2 -p1
 
 %build
-%{expand:%bkpkg}
+%{expand:%build_kernel_packages}
 
 %install
 rm -rf $RPM_BUILD_ROOT
