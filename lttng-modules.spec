@@ -48,7 +48,7 @@ Moduły LTTng 2.x dla jądra Linuksa.\
 \
 %files -n kernel%{_alt_kernel}-lttng\
 %defattr(644,root,root,755)\
-%doc ChangeLog LICENSE README TODO\
+%doc ChangeLog LICENSE README.md TODO\
 %dir /lib/modules/%{_kernel_ver}/kernel/lttng\
 /lib/modules/%{_kernel_ver}/kernel/lttng/lttng-ring-buffer-*.ko*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/lttng-statedump.ko*\
