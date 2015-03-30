@@ -6,7 +6,7 @@
 # nothing to be placed to debuginfo package
 %define		_enable_debug_packages	0
 
-%define		rel	2
+%define		rel	3
 %define		pname	lttng-modules
 Summary:	LTTng 2.x kernel modules
 Summary(pl.UTF-8):	Moduły jądra LTTng 2.x
