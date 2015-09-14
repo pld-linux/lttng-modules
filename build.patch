@@ -1,17 +1,17 @@
---- lttng-modules-2.5.1/Makefile~	2014-10-20 22:48:47.000000000 +0200
-+++ lttng-modules-2.5.1/Makefile	2014-11-09 16:11:25.914717733 +0100
-@@ -5,19 +5,19 @@
- ifneq ($(KERNELRELEASE),)
- ifneq ($(CONFIG_TRACEPOINTS),)
+--- lttng-modules-2.6.3/Makefile.orig	2015-09-14 20:30:29.749794009 +0200
++++ lttng-modules-2.6.3/Makefile	2015-09-14 20:31:10.693125624 +0200
+@@ -8,8 +8,8 @@
+ KERNELDIR = ${LTTNG_KERNELDIR}
+ MAKEFILEDIR = $(shell dirname $(lastword $(MAKEFILE_LIST)))
  
 -lttng_check_linux_version = $(shell pwd)/include/linux/version.h
 -lttng_check_generated_linux_version = $(shell pwd)/include/generated/uapi/linux/version.h
--
 +#lttng_check_linux_version = $(shell pwd)/include/linux/version.h
 +#lttng_check_generated_linux_version = $(shell pwd)/include/generated/uapi/linux/version.h
-+#
+ 
+ 
  #
- # Check for stale version.h, which can be a leftover from an old Linux
+@@ -17,11 +17,11 @@
  # kernel tree moved to a newer kernel version, only pruned by make
  # distclean.
  #
@@ -26,5 +26,5 @@
 +#endif
 +#endif
  
- obj-m += lttng-ring-buffer-client-discard.o
- obj-m += lttng-ring-buffer-client-overwrite.o
+ include $(MAKEFILEDIR)/Makefile.ABI.workarounds
+ 
