@@ -61,6 +61,7 @@ Moduły LTTng 2.x dla jądra Linuksa.\
 /lib/modules/%{_kernel_ver}/kernel/lttng/probes/lttng-kprobes.ko*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/probes/lttng-kretprobes.ko*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/probes/lttng-probe-*.ko*\
+/lib/modules/%{_kernel_ver}/kernel/lttng/probes/lttng-test.ko*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/probes/lttng-types.ko*\
 \
 %post	-n kernel%{_alt_kernel}-lttng\
