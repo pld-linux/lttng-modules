@@ -1,30 +1,29 @@
 --- lttng-modules-2.6.3/Makefile.orig	2015-09-14 20:30:29.749794009 +0200
 +++ lttng-modules-2.6.3/Makefile	2015-09-14 20:31:10.693125624 +0200
-@@ -8,8 +8,8 @@
- KERNELDIR = ${LTTNG_KERNELDIR}
- MAKEFILEDIR = $(shell dirname $(lastword $(MAKEFILE_LIST)))
+@@ -8,19 +8,19 @@
  
--lttng_check_linux_version = $(shell pwd)/include/linux/version.h
--lttng_check_generated_linux_version = $(shell pwd)/include/generated/uapi/linux/version.h
-+#lttng_check_linux_version = $(shell pwd)/include/linux/version.h
-+#lttng_check_generated_linux_version = $(shell pwd)/include/generated/uapi/linux/version.h
+   TOP_LTTNG_MODULES_DIR := $(shell dirname $(lastword $(MAKEFILE_LIST)))
  
+-  lttng_check_linux_version = $(shell pwd)/include/linux/version.h
+-  lttng_check_generated_linux_version = $(shell pwd)/include/generated/uapi/linux/version.h
++#  lttng_check_linux_version = $(shell pwd)/include/linux/version.h
++#  lttng_check_generated_linux_version = $(shell pwd)/include/generated/uapi/linux/version.h
  
- #
-@@ -17,11 +17,11 @@
- # kernel tree moved to a newer kernel version, only pruned by make
- # distclean.
- #
--ifneq ($(wildcard $(lttng_check_linux_version)),)
--ifneq ($(wildcard $(lttng_check_generated_linux_version)),)
--$(error Duplicate version.h files found in $(lttng_check_linux_version) and $(lttng_check_generated_linux_version). Consider running make distclean on your kernel, or removing the stale $(lttng_check_linux_version) file)
--endif
--endif
-+#ifneq ($(wildcard $(lttng_check_linux_version)),)
-+#ifneq ($(wildcard $(lttng_check_generated_linux_version)),)
-+#$(error Duplicate version.h files found in $(lttng_check_linux_version) and $(lttng_check_generated_linux_version). Consider running make distclean on your kernel, or removing the stale $(lttng_check_linux_version) file)
-+#endif
-+#endif
+   #
+   # Check for stale version.h, which can be a leftover from an old Linux
+   # kernel tree moved to a newer kernel version, only pruned by make
+   # distclean.
+   #
+-  ifneq ($(wildcard $(lttng_check_linux_version)),)
+-    ifneq ($(wildcard $(lttng_check_generated_linux_version)),)
+-      $(error Duplicate version.h files found in $(lttng_check_linux_version) and $(lttng_check_generated_linux_version). Consider running make distclean on your kernel, or removing the stale $(lttng_check_linux_version) file)
+-    endif
+-  endif
++#  ifneq ($(wildcard $(lttng_check_linux_version)),)
++#    ifneq ($(wildcard $(lttng_check_generated_linux_version)),)
++#      $(error Duplicate version.h files found in $(lttng_check_linux_version) and $(lttng_check_generated_linux_version). Consider running make distclean on your kernel, or removing the stale $(lttng_check_linux_version) file)
++#    endif
++#  endif
  
- include $(MAKEFILEDIR)/Makefile.ABI.workarounds
+   include $(TOP_LTTNG_MODULES_DIR)/Makefile.ABI.workarounds
  

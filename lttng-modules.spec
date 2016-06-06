@@ -12,12 +12,12 @@
 Summary:	LTTng 2.x kernel modules
 Summary(pl.UTF-8):	Moduły jądra LTTng 2.x
 Name:		%{pname}%{_alt_kernel}
-Version:	2.7.2
+Version:	2.8.0
 Release:	%{rel}@%{_kernel_ver_str}
 License:	GPL v2
 Group:		Base/Kernel
 Source0:	http://lttng.org/files/lttng-modules/%{pname}-%{version}.tar.bz2
-# Source0-md5:	1e573bdec0a34cb3bc8668621d076343
+# Source0-md5:	310029241e50c67c19236e82b68c56b3
 Patch0:		build.patch
 URL:		http://lttng.org/
 %{expand:%buildrequires_kernel kernel%%{_alt_kernel}-module-build >= 3:2.6.38}
@@ -51,6 +51,7 @@ Moduły LTTng 2.x dla jądra Linuksa.\
 %defattr(644,root,root,755)\
 %doc ChangeLog LICENSE README.md TODO\
 %dir /lib/modules/%{_kernel_ver}/kernel/lttng\
+/lib/modules/%{_kernel_ver}/kernel/lttng/lttng-clock.ko*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/lttng-ring-buffer-*.ko*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/lttng-statedump.ko*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/lttng-tracer.ko*\
@@ -61,8 +62,11 @@ Moduły LTTng 2.x dla jądra Linuksa.\
 /lib/modules/%{_kernel_ver}/kernel/lttng/probes/lttng-kprobes.ko*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/probes/lttng-kretprobes.ko*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/probes/lttng-probe-*.ko*\
-/lib/modules/%{_kernel_ver}/kernel/lttng/probes/lttng-test.ko*\
-/lib/modules/%{_kernel_ver}/kernel/lttng/probes/lttng-types.ko*\
+%dir /lib/modules/%{_kernel_ver}/kernel/lttng/tests\
+%dir /lib/modules/%{_kernel_ver}/kernel/lttng/tests/clock-plugin\
+/lib/modules/%{_kernel_ver}/kernel/lttng/tests/clock-plugin/lttng-clock-plugin-test.ko*\
+%dir /lib/modules/%{_kernel_ver}/kernel/lttng/tests/probes\
+/lib/modules/%{_kernel_ver}/kernel/lttng/tests/probes/lttng-test.ko*\
 \
 %post	-n kernel%{_alt_kernel}-lttng\
 %depmod %{_kernel_ver}\
@@ -73,8 +77,7 @@ Moduły LTTng 2.x dla jądra Linuksa.\
 
 %define build_kernel_pkg()\
 %{__make} \\\
-	KERNELDIR=%{_kernelsrcdir} \\\
-	EXTCFLAGS="%{rpmcflags}"\
+	KERNELDIR=%{_kernelsrcdir}\
 p=`pwd`\
 %{__make} modules_install \\\
 	INSTALL_MOD_PATH=$p/installed \\\
