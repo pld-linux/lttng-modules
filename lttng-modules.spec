@@ -51,6 +51,7 @@ Moduły LTTng 2.x dla jądra Linuksa.\
 %defattr(644,root,root,755)\
 %doc ChangeLog LICENSE README.md TODO\
 %dir /lib/modules/%{_kernel_ver}/kernel/lttng\
+/lib/modules/%{_kernel_ver}/kernel/lttng/lttng-clock.ko*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/lttng-ring-buffer-*.ko*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/lttng-statedump.ko*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/lttng-tracer.ko*\
@@ -62,6 +63,8 @@ Moduły LTTng 2.x dla jądra Linuksa.\
 /lib/modules/%{_kernel_ver}/kernel/lttng/probes/lttng-kretprobes.ko*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/probes/lttng-probe-*.ko*\
 %dir /lib/modules/%{_kernel_ver}/kernel/lttng/tests\
+/lib/modules/%{_kernel_ver}/kernel/lttng/tests/lttng-clock-plugin-test.ko*\
+/lib/modules/%{_kernel_ver}/kernel/lttng/tests/lttng-test.ko*\
 \
 %post	-n kernel%{_alt_kernel}-lttng\
 %depmod %{_kernel_ver}\
