@@ -12,12 +12,12 @@
 Summary:	LTTng 2.x kernel modules
 Summary(pl.UTF-8):	Moduły jądra LTTng 2.x
 Name:		%{pname}%{_alt_kernel}
-Version:	2.9.2
+Version:	2.9.3
 Release:	%{rel}@%{_kernel_ver_str}
 License:	GPL v2
 Group:		Base/Kernel
 Source0:	http://lttng.org/files/lttng-modules/%{pname}-%{version}.tar.bz2
-# Source0-md5:	6c02645c77fd4d6475a4f83bda1d75ff
+# Source0-md5:	9abf694dddcc197988189ef65b496f4c
 Patch0:		build.patch
 URL:		http://lttng.org/
 %{expand:%buildrequires_kernel kernel%%{_alt_kernel}-module-build >= 3:2.6.38}
