@@ -1,0 +1,272 @@
+From 562860aa5d13249d2c80e51080a3437ef5d2fe0b Mon Sep 17 00:00:00 2001
+From: Rasmus Villemoes <rasmus.villemoes@prevas.dk>
+Date: Mon, 12 Feb 2018 18:31:40 +0100
+Subject: [PATCH] Fix: update timer instrumentation on 4.16 and 4.14-rt
+
+See upstream commit :
+
+  commit 63e2ed3659752a4850e0ef3a07f809988fcd74a4
+  Author: Anna-Maria Gleixner <anna-maria@linutronix.de>
+  Date:   Thu Dec 21 11:41:38 2017 +0100
+
+    tracing/hrtimer: Print the hrtimer mode in the 'hrtimer_start' tracepoint
+
+    The 'hrtimer_start' tracepoint lacks the mode information. The mode is
+    important because consecutive starts can switch from ABS to REL or from
+    PINNED to non PINNED.
+
+    Append the mode field.
+
+See linux-rt commit :
+
+  commit 6ee32a49b1ed61c08ac9f1c9fcbf83d3c749b71d
+  Author: Anna-Maria Gleixner <anna-maria@linutronix.de>
+  Date:   Sun Oct 22 23:39:46 2017 +0200
+
+    tracing: hrtimer: Print hrtimer mode in hrtimer_start tracepoint
+
+    The hrtimer_start tracepoint lacks the mode information. The mode is
+    important because consecutive starts can switch from ABS to REL or from
+    PINNED to non PINNED.
+
+    Add the mode information.
+
+Signed-off-by: Rasmus Villemoes <rasmus.villemoes@prevas.dk>
+Signed-off-by: Michael Jeanson <mjeanson@efficios.com>
+Signed-off-by: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+---
+ instrumentation/events/lttng-module/timer.h | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)
+
+diff --git a/instrumentation/events/lttng-module/timer.h b/instrumentation/events/lttng-module/timer.h
+index d62fd25..6f0cb7f 100644
+--- a/instrumentation/events/lttng-module/timer.h
++++ b/instrumentation/events/lttng-module/timer.h
+@@ -160,6 +160,27 @@ LTTNG_TRACEPOINT_EVENT_MAP(hrtimer_init,
+  * hrtimer_start - called when the hrtimer is started
+  * @timer: pointer to struct hrtimer
+  */
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,16,0) || \
++	LTTNG_RT_KERNEL_RANGE(4,14,0,0, 4,15,0,0))
++LTTNG_TRACEPOINT_EVENT_MAP(hrtimer_start,
++
++	timer_hrtimer_start,
++
++	TP_PROTO(struct hrtimer *hrtimer, enum hrtimer_mode mode),
++
++	TP_ARGS(hrtimer, mode),
++
++	TP_FIELDS(
++		ctf_integer_hex(void *, hrtimer, hrtimer)
++		ctf_integer_hex(void *, function, hrtimer->function)
++		ctf_integer(s64, expires,
++			lttng_ktime_get_tv64(hrtimer_get_expires(hrtimer)))
++		ctf_integer(s64, softexpires,
++			lttng_ktime_get_tv64(hrtimer_get_softexpires(hrtimer)))
++		ctf_integer(enum hrtimer_mode, mode, mode)
++	)
++)
++#else
+ LTTNG_TRACEPOINT_EVENT_MAP(hrtimer_start,
+ 
+ 	timer_hrtimer_start,
+@@ -177,6 +198,7 @@ LTTNG_TRACEPOINT_EVENT_MAP(hrtimer_start,
+ 			lttng_ktime_get_tv64(hrtimer_get_softexpires(hrtimer)))
+ 	)
+ )
++#endif
+ 
+ /**
+  * htimmer_expire_entry - called immediately before the hrtimer callback
+From 9cf057fcd8189b44b11069a3f96be6e53d57c9e9 Mon Sep 17 00:00:00 2001
+From: Michael Jeanson <mjeanson@efficios.com>
+Date: Mon, 12 Feb 2018 18:32:12 +0100
+Subject: [PATCH] Fix: update vmscan instrumentation for v4.16
+
+See upstream commit :
+
+  commit 9092c71bb724dba2ecba849eae69e5c9d39bd3d2
+  Author: Josef Bacik <jbacik@fb.com>
+  Date:   Wed Jan 31 16:16:26 2018 -0800
+
+    mm: use sc->priority for slab shrink targets
+
+    Previously we were using the ratio of the number of lru pages scanned to
+    the number of eligible lru pages to determine the number of slab objects
+    to scan.  The problem with this is that these two things have nothing to
+    do with each other, so in slab heavy work loads where there is little to
+    no page cache we can end up with the pages scanned being a very low
+    number.  This means that we reclaim next to no slab pages and waste a
+    lot of time reclaiming small amounts of space.
+
+Signed-off-by: Michael Jeanson <mjeanson@efficios.com>
+Signed-off-by: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+---
+ instrumentation/events/lttng-module/mm_vmscan.h | 31 ++++++++++++++++++++++---
+ 1 file changed, 28 insertions(+), 3 deletions(-)
+
+diff --git a/instrumentation/events/lttng-module/mm_vmscan.h b/instrumentation/events/lttng-module/mm_vmscan.h
+index 9845635..a69b42f 100644
+--- a/instrumentation/events/lttng-module/mm_vmscan.h
++++ b/instrumentation/events/lttng-module/mm_vmscan.h
+@@ -204,7 +204,32 @@ LTTNG_TRACEPOINT_EVENT_INSTANCE(mm_vmscan_direct_reclaim_end_template, mm_vmscan
+ 	TP_ARGS(nr_reclaimed)
+ )
+ 
+-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,1,0))
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,16,0))
++LTTNG_TRACEPOINT_EVENT_MAP(mm_shrink_slab_start,
++
++	mm_vmscan_shrink_slab_start,
++
++	TP_PROTO(struct shrinker *shr, struct shrink_control *sc,
++		long nr_objects_to_shrink, unsigned long cache_items,
++		unsigned long long delta, unsigned long total_scan,
++		int priority),
++
++	TP_ARGS(shr, sc, nr_objects_to_shrink, cache_items, delta, total_scan,
++		priority),
++
++	TP_FIELDS(
++		ctf_integer_hex(struct shrinker *, shr, shr)
++		ctf_integer_hex(void *, shrink, shr->scan_objects)
++		ctf_integer(int, nid, sc->nid)
++		ctf_integer(long, nr_objects_to_shrink, nr_objects_to_shrink)
++		ctf_integer(gfp_t, gfp_flags, sc->gfp_mask)
++		ctf_integer(unsigned long, cache_items, cache_items)
++		ctf_integer(unsigned long long, delta, delta)
++		ctf_integer(unsigned long, total_scan, total_scan)
++		ctf_integer(int, priority, priority)
++	)
++)
++#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3,1,0))
+ LTTNG_TRACEPOINT_EVENT_MAP(mm_shrink_slab_start,
+ 
+ 	mm_vmscan_shrink_slab_start,
+@@ -233,6 +258,7 @@ LTTNG_TRACEPOINT_EVENT_MAP(mm_shrink_slab_start,
+ 		ctf_integer(unsigned long, total_scan, total_scan)
+ 	)
+ )
++#endif
+ 
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,16,0))
+ LTTNG_TRACEPOINT_EVENT_MAP(mm_shrink_slab_end,
+@@ -255,7 +281,7 @@ LTTNG_TRACEPOINT_EVENT_MAP(mm_shrink_slab_end,
+ 		ctf_integer(long, total_scan, total_scan)
+ 	)
+ )
+-#else /* #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,16,0)) */
++#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3,1,0))
+ LTTNG_TRACEPOINT_EVENT_MAP(mm_shrink_slab_end,
+ 
+ 	mm_vmscan_shrink_slab_end,
+@@ -278,7 +304,6 @@ LTTNG_TRACEPOINT_EVENT_MAP(mm_shrink_slab_end,
+ 		ctf_integer(long, total_scan, new_scan_cnt - unused_scan_cnt)
+ 	)
+ )
+-#endif /* #else #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,16,0)) */
+ #endif
+ 
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,11,0))
+From 760a1caeaf8962c438fdc7b21e1d0a4a6bb74354 Mon Sep 17 00:00:00 2001
+From: Michael Jeanson <mjeanson@efficios.com>
+Date: Mon, 12 Feb 2018 18:32:25 +0100
+Subject: [PATCH] Fix: update rcu instrumentation for v4.16
+
+See upstream commits :
+
+  commit dec98900eae1e22467182e58688abe5fae98bd5f
+  Author: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+  Date:   Wed Oct 4 16:24:29 2017 -0700
+
+    rcu: Add ->dynticks field to rcu_dyntick trace event
+
+  commit 84585aa8b6ad24e5bdfba9db4a320a6aeed192ab
+  Author: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+  Date:   Wed Oct 4 15:55:16 2017 -0700
+
+    rcu: Shrink ->dynticks_{nmi_,}nesting from long long to long
+
+    Because the ->dynticks_nesting field now only contains the process-based
+    nesting level instead of a value encoding both the process nesting level
+    and the irq "nesting" level, we no longer need a long long, even on
+    32-bit systems.  This commit therefore changes both the ->dynticks_nesting
+    and ->dynticks_nmi_nesting fields to long.
+
+Signed-off-by: Michael Jeanson <mjeanson@efficios.com>
+Signed-off-by: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+---
+ instrumentation/events/lttng-module/rcu.h | 41 ++++++++++++++++++++++++++-----
+ 1 file changed, 35 insertions(+), 6 deletions(-)
+
+diff --git a/instrumentation/events/lttng-module/rcu.h b/instrumentation/events/lttng-module/rcu.h
+index 869de08..4528a79 100644
+--- a/instrumentation/events/lttng-module/rcu.h
++++ b/instrumentation/events/lttng-module/rcu.h
+@@ -220,31 +220,60 @@ LTTNG_TRACEPOINT_EVENT(rcu_fqs,
+  * events use the upper bits of each number, while interrupt-related
+  * events use the lower bits.
+  */
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,16,0))
+ LTTNG_TRACEPOINT_EVENT(rcu_dyntick,
+ 
++	TP_PROTO(const char *polarity, long oldnesting, long newnesting, atomic_t dynticks),
++
++	TP_ARGS(polarity, oldnesting, newnesting, dynticks),
++
++	TP_FIELDS(
++		ctf_string(polarity, polarity)
++		ctf_integer(long, oldnesting, oldnesting)
++		ctf_integer(long, newnesting, newnesting)
++		ctf_integer(int, dynticks, atomic_read(&dynticks))
++	)
++)
++
++#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3,12,0))
++LTTNG_TRACEPOINT_EVENT(rcu_dyntick,
+ 
+-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,12,0))
+ 	TP_PROTO(const char *polarity, long long oldnesting, long long newnesting),
+ 
+ 	TP_ARGS(polarity, oldnesting, newnesting),
++
++	TP_FIELDS(
++		ctf_string(polarity, polarity)
++		ctf_integer(long long, oldnesting, oldnesting)
++		ctf_integer(long long, newnesting, newnesting)
++	)
++)
+ #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0))
++LTTNG_TRACEPOINT_EVENT(rcu_dyntick,
++
+ 	TP_PROTO(char *polarity, long long oldnesting, long long newnesting),
+ 
+ 	TP_ARGS(polarity, oldnesting, newnesting),
++
++	TP_FIELDS(
++		ctf_string(polarity, polarity)
++		ctf_integer(long long, oldnesting, oldnesting)
++		ctf_integer(long long, newnesting, newnesting)
++	)
++)
+ #else
++LTTNG_TRACEPOINT_EVENT(rcu_dyntick,
++
+ 	TP_PROTO(char *polarity),
+ 
+ 	TP_ARGS(polarity),
+-#endif
+ 
+ 	TP_FIELDS(
+ 		ctf_string(polarity, polarity)
+-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0))
+-		ctf_integer(long long, oldnesting, oldnesting)
+-		ctf_integer(long long, newnesting, newnesting)
+-#endif
+ 	)
+ )
++#endif
++
+ 
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0))
+ /*
