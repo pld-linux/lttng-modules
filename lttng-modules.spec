@@ -20,6 +20,7 @@ Source0:	http://lttng.org/files/lttng-modules/%{pname}-%{version}.tar.bz2
 # Source0-md5:	54bd9fca61487bbec1b3fca2f2213c98
 Patch0:		build.patch
 Patch1:		kernel-4.20.patch
+Patch2:		kernel-5.0.patch
 URL:		http://lttng.org/
 %{expand:%buildrequires_kernel kernel%%{_alt_kernel}-module-build >= 3:2.6.38}
 %{?with_kernelsrc:%{expand:%buildrequires_kernel kernel%%{_alt_kernel}-source >= 3:2.6.38}}
@@ -90,6 +91,7 @@ p=`pwd`\
 %setup -q -n %{pname}-%{version}
 %patch0 -p1
 %patch1 -p1
+%patch2 -p1
 
 %build
 %{expand:%build_kernel_packages}
