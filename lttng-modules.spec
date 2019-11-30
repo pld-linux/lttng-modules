@@ -12,12 +12,12 @@
 Summary:	LTTng 2.x kernel modules
 Summary(pl.UTF-8):	Moduły jądra LTTng 2.x
 Name:		%{pname}%{_alt_kernel}
-Version:	2.10.12
+Version:	2.11.0
 Release:	%{rel}@%{_kernel_ver_str}
 License:	GPL v2
 Group:		Base/Kernel
 Source0:	https://lttng.org/files/lttng-modules/%{pname}-%{version}.tar.bz2
-# Source0-md5:	844b5a94cd6bf5c26c5980f99b96750c
+# Source0-md5:	46ec6c566e65cf27b391a1bb643e11b4
 Patch0:		build.patch
 URL:		https://lttng.org/
 %{expand:%buildrequires_kernel kernel%%{_alt_kernel}-module-build >= 3:2.6.38}
@@ -62,6 +62,7 @@ Moduły LTTng 2.x dla jądra Linuksa.\
 /lib/modules/%{_kernel_ver}/kernel/lttng/probes/lttng-kprobes.ko*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/probes/lttng-kretprobes.ko*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/probes/lttng-probe-*.ko*\
+/lib/modules/%{_kernel_ver}/kernel/lttng/probes/lttng-uprobes.ko*\
 %dir /lib/modules/%{_kernel_ver}/kernel/lttng/tests\
 /lib/modules/%{_kernel_ver}/kernel/lttng/tests/lttng-clock-plugin-test.ko*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/tests/lttng-test.ko*\
