@@ -7,7 +7,7 @@
 # nothing to be placed to debuginfo package
 %define		_enable_debug_packages	0
 
-%define		rel	1
+%define		rel	2
 %define		pname	lttng-modules
 Summary:	LTTng 2.x kernel modules
 Summary(pl.UTF-8):	Moduły jądra LTTng 2.x
@@ -49,7 +49,7 @@ Moduły LTTng 2.x dla jądra Linuksa.\
 \
 %files -n kernel%{_alt_kernel}-lttng\
 %defattr(644,root,root,755)\
-%doc ChangeLog LICENSE README.md TODO\
+%doc %{pname}-%{version}/{ChangeLog,LICENSE,README.md,TODO}\
 %dir /lib/modules/%{_kernel_ver}/kernel/lttng\
 /lib/modules/%{_kernel_ver}/kernel/lttng/lttng-clock.ko*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/lttng-ring-buffer-*.ko*\
@@ -75,11 +75,13 @@ Moduły LTTng 2.x dla jądra Linuksa.\
 %{nil}
 
 %define build_kernel_pkg()\
+%{__make} clean \\\
+	KERNELDIR=%{_kernelsrcdir}\
 %{__make} \\\
 	KERNELDIR=%{_kernelsrcdir}\
 p=`pwd`\
 %{__make} modules_install \\\
-	INSTALL_MOD_PATH=$p/installed \\\
+	INSTALL_MOD_PATH=$p/../installed \\\
 	INSTALL_MOD_DIR=kernel/lttng \\\
 	KERNELDIR=%{_kernelsrcdir}\
 %{nil}
@@ -87,10 +89,12 @@ p=`pwd`\
 %{expand:%create_kernel_packages}
 
 %prep
-%setup -q -n %{pname}-%{version}
+%setup -qc
+cd  %{pname}-%{version}
 %patch0 -p1
 
 %build
+cd  %{pname}-%{version}
 %{expand:%build_kernel_packages}
 
 %install
