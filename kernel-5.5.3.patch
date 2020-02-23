@@ -1,5 +1,5 @@
---- lttng-modules-2.11.1/lttng-modules-2.11.1/instrumentation/events/lttng-module/arch/x86/kvm/mmutrace.h~	2020-01-28 16:09:46.000000000 +0100
-+++ lttng-modules-2.11.1/lttng-modules-2.11.1/instrumentation/events/lttng-module/arch/x86/kvm/mmutrace.h	2020-02-23 07:58:12.916686709 +0100
+--- lttng-modules-2.11.1/instrumentation/events/lttng-module/arch/x86/kvm/mmutrace.h~	2020-01-28 16:09:46.000000000 +0100
++++ lttng-modules-2.11.1/instrumentation/events/lttng-module/arch/x86/kvm/mmutrace.h	2020-02-23 07:58:12.916686709 +0100
 @@ -219,6 +219,21 @@
  
  	kvm_mmu_fast_page_fault,
