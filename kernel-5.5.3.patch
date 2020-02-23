@@ -4,7 +4,7 @@
  
  	kvm_mmu_fast_page_fault,
  
-+#if 1 || (LINUX_VERSION_CODE >= KERNEL_VERSION(5,4,20))
++#if (LINUX_VERSION_CODE > KERNEL_VERSION(4,14))
 +	TP_PROTO(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa, u32 error_code,
 +		 u64 *sptep, u64 old_spte, bool retry),
 +	TP_ARGS(vcpu, cr2_or_gpa, error_code, sptep, old_spte, retry),
