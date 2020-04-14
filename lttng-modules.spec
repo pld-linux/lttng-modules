@@ -1,7 +1,6 @@
 #
 # Conditional build:
 %bcond_without	kernelsrc	# probes which require full kernel source (kvm, btrfs, ext4, regmap)
-%bcond_without	ftrace		# dynamic ftrace module
 %bcond_with	verbose		# verbose build (V=1)
 
 # nothing to be placed to debuginfo package
@@ -12,18 +11,17 @@
 Summary:	LTTng 2.x kernel modules
 Summary(pl.UTF-8):	Moduły jądra LTTng 2.x
 Name:		%{pname}%{_alt_kernel}
-Version:	2.11.2
+Version:	2.12.0
 Release:	%{rel}@%{_kernel_ver_str}
 License:	GPL v2
 Group:		Base/Kernel
 Source0:	https://lttng.org/files/lttng-modules/%{pname}-%{version}.tar.bz2
-# Source0-md5:	2e3bc8cfb264fa13f374618b46f170e7
+# Source0-md5:	be252df5013ea03894921d0b493c7b6c
 Patch0:		build.patch
-Patch1:		kernel-5.5.3.patch
 URL:		https://lttng.org/
-%{expand:%buildrequires_kernel kernel%%{_alt_kernel}-module-build >= 3:2.6.38}
-%{?with_kernelsrc:%{expand:%buildrequires_kernel kernel%%{_alt_kernel}-source >= 3:2.6.38}}
-BuildRequires:	rpmbuild(macros) >= 1.701
+%{expand:%buildrequires_kernel kernel%%{_alt_kernel}-module-build >= 3:3.0}
+%{?with_kernelsrc:%{expand:%buildrequires_kernel kernel%%{_alt_kernel}-source >= 3:3.0}}
+BuildRequires:	rpmbuild(macros) >= 1.746
 BuildRoot:	%{tmpdir}/%{name}-%{version}-root-%(id -u -n)
 
 %description
@@ -59,7 +57,6 @@ Moduły LTTng 2.x dla jądra Linuksa.\
 %dir /lib/modules/%{_kernel_ver}/kernel/lttng/lib\
 /lib/modules/%{_kernel_ver}/kernel/lttng/lib/lttng-lib-ring-buffer.ko*\
 %dir /lib/modules/%{_kernel_ver}/kernel/lttng/probes\
-%{?with_ftrace:/lib/modules/%{_kernel_ver}/kernel/lttng/probes/lttng-ftrace.ko*}\
 /lib/modules/%{_kernel_ver}/kernel/lttng/probes/lttng-kprobes.ko*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/probes/lttng-kretprobes.ko*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/probes/lttng-probe-*.ko*\
@@ -93,7 +90,6 @@ p=`pwd`\
 %setup -qc
 cd  %{pname}-%{version}
 %patch0 -p1
-%patch1 -p1
 
 %build
 cd  %{pname}-%{version}
