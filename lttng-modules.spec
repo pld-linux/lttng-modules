@@ -11,12 +11,12 @@
 Summary:	LTTng 2.x kernel modules
 Summary(pl.UTF-8):	Moduły jądra LTTng 2.x
 Name:		%{pname}%{_alt_kernel}
-Version:	2.12.0
+Version:	2.12.1
 Release:	%{rel}@%{_kernel_ver_str}
 License:	GPL v2
 Group:		Base/Kernel
 Source0:	https://lttng.org/files/lttng-modules/%{pname}-%{version}.tar.bz2
-# Source0-md5:	be252df5013ea03894921d0b493c7b6c
+# Source0-md5:	59982aedf56e974c13ec25c5192899b7
 Patch0:		build.patch
 URL:		https://lttng.org/
 %{expand:%buildrequires_kernel kernel%%{_alt_kernel}-module-build >= 3:3.0}
@@ -54,6 +54,7 @@ Moduły LTTng 2.x dla jądra Linuksa.\
 /lib/modules/%{_kernel_ver}/kernel/lttng/lttng-ring-buffer-*.ko*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/lttng-statedump.ko*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/lttng-tracer.ko*\
+/lib/modules/%{_kernel_ver}/kernel/lttng/lttng-wrapper.ko*\
 %dir /lib/modules/%{_kernel_ver}/kernel/lttng/lib\
 /lib/modules/%{_kernel_ver}/kernel/lttng/lib/lttng-lib-ring-buffer.ko*\
 %dir /lib/modules/%{_kernel_ver}/kernel/lttng/probes\
