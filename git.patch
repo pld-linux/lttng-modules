@@ -1,1426 +1,1062 @@
-diff --git a/Kconfig b/Kconfig
-index acdab73..10eccff 100644
---- a/Kconfig
-+++ b/Kconfig
-@@ -2,7 +2,7 @@
- 
- config LTTNG
- 	tristate "LTTng support"
--	select TRACEPOINTS
-+	select TRACING
- 	help
- 	  LTTng is an open source tracing framework for Linux.
- 
+diff --git a/.gitattributes b/.gitattributes
+new file mode 100644
+index 00000000..7839355a
+--- /dev/null
++++ b/.gitattributes
+@@ -0,0 +1,3 @@
++.gitattributes export-ignore
++.gitignore export-ignore
++.gitreview export-ignore
 diff --git a/instrumentation/events/lttng-module/arch/x86/kvm/mmutrace.h b/instrumentation/events/lttng-module/arch/x86/kvm/mmutrace.h
-index 73463d5..e547040 100644
+index e5470400..cdf0609f 100644
 --- a/instrumentation/events/lttng-module/arch/x86/kvm/mmutrace.h
 +++ b/instrumentation/events/lttng-module/arch/x86/kvm/mmutrace.h
-@@ -220,6 +220,7 @@ LTTNG_TRACEPOINT_EVENT_MAP(
+@@ -163,7 +163,25 @@ LTTNG_TRACEPOINT_EVENT_INSTANCE(kvm_mmu_page_class, kvm_mmu_prepare_zap_page,
+ 	TP_ARGS(sp)
+ )
+ 
+-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,11,0))
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,10,0))
++
++LTTNG_TRACEPOINT_EVENT_MAP(
++	mark_mmio_spte,
++
++	kvm_mmu_mark_mmio_spte,
++
++	TP_PROTO(u64 *sptep, gfn_t gfn, u64 spte),
++	TP_ARGS(sptep, gfn, spte),
++
++	TP_FIELDS(
++		ctf_integer_hex(void *, sptep, sptep)
++		ctf_integer(gfn_t, gfn, gfn)
++		ctf_integer(unsigned, access, spte & ACC_ALL)
++		ctf_integer(unsigned int, gen, get_mmio_spte_generation(spte))
++	)
++)
++
++#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3,11,0))
+ 
+ LTTNG_TRACEPOINT_EVENT_MAP(
+ 	mark_mmio_spte,
+@@ -215,7 +233,27 @@ LTTNG_TRACEPOINT_EVENT_MAP(
+ 	)
+ )
+ 
+-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,6,0) || \
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,10,0))
++LTTNG_TRACEPOINT_EVENT_MAP(
++	fast_page_fault,
++
++	kvm_mmu_fast_page_fault,
++
++	TP_PROTO(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa, u32 error_code,
++		 u64 *sptep, u64 old_spte, int ret),
++	TP_ARGS(vcpu, cr2_or_gpa, error_code, sptep, old_spte, ret),
++
++	TP_FIELDS(
++		ctf_integer(int, vcpu_id, vcpu->vcpu_id)
++		ctf_integer(gpa_t, cr2_or_gpa, cr2_or_gpa)
++		ctf_integer(u32, error_code, error_code)
++		ctf_integer_hex(u64 *, sptep, sptep)
++		ctf_integer(u64, old_spte, old_spte)
++		ctf_integer(u64, new_spte, *sptep)
++		ctf_integer(int, ret, ret)
++	)
++)
++#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(5,6,0) || \
+ 	LTTNG_KERNEL_RANGE(4,19,103, 4,20,0) || \
  	LTTNG_KERNEL_RANGE(5,4,19, 5,5,0) || \
  	LTTNG_KERNEL_RANGE(5,5,3, 5,6,0) || \
- 	LTTNG_UBUNTU_KERNEL_RANGE(4,15,18,92, 4,16,0,0) || \
-+	LTTNG_UBUNTU_KERNEL_RANGE(5,0,21,44, 5,1,0,0) || \
- 	LTTNG_UBUNTU_KERNEL_RANGE(5,3,18,43, 5,3,18,45) || \
- 	LTTNG_UBUNTU_KERNEL_RANGE(5,3,18,46, 5,4,0,0))
- LTTNG_TRACEPOINT_EVENT_MAP(
-diff --git a/instrumentation/events/lttng-module/ext4.h b/instrumentation/events/lttng-module/ext4.h
-index 5f7ab28..b172c8d 100644
---- a/instrumentation/events/lttng-module/ext4.h
-+++ b/instrumentation/events/lttng-module/ext4.h
-@@ -460,6 +460,21 @@ LTTNG_TRACEPOINT_EVENT(ext4_mb_release_group_pa,
+diff --git a/instrumentation/events/lttng-module/arch/x86/kvm/trace.h b/instrumentation/events/lttng-module/arch/x86/kvm/trace.h
+index 4416ae02..0917b51f 100644
+--- a/instrumentation/events/lttng-module/arch/x86/kvm/trace.h
++++ b/instrumentation/events/lttng-module/arch/x86/kvm/trace.h
+@@ -115,6 +115,37 @@ LTTNG_TRACEPOINT_EVENT_MAP(kvm_apic, kvm_x86_apic,
+ /*
+  * Tracepoint for kvm guest exit:
+  */
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,10,0))
++LTTNG_TRACEPOINT_EVENT_CODE_MAP(kvm_exit, kvm_x86_exit,
++	TP_PROTO(unsigned int exit_reason, struct kvm_vcpu *vcpu, u32 isa),
++	TP_ARGS(exit_reason, vcpu, isa),
++
++	TP_locvar(
++		u64 info1, info2;
++		u32 intr_info, error_code;
++	),
++
++	TP_code_pre(
++		kvm_x86_ops.get_exit_info(vcpu, &tp_locvar->info1,
++				&tp_locvar->info2,
++				&tp_locvar->intr_info,
++				&tp_locvar->error_code);
++	),
++
++	TP_FIELDS(
++		ctf_integer(unsigned int, exit_reason, exit_reason)
++		ctf_integer(unsigned long, guest_rip, kvm_rip_read(vcpu))
++		ctf_integer(u32, isa, isa)
++		ctf_integer(u64, info1, tp_locvar->info1)
++		ctf_integer(u64, info2, tp_locvar->info2)
++		ctf_integer(u32, intr_info, tp_locvar->intr_info)
++		ctf_integer(u32, error_code, tp_locvar->error_code)
++		ctf_integer(unsigned int, vcpu_id, vcpu->vcpu_id)
++	),
++
++	TP_code_post()
++)
++#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(5,7,0))
+ LTTNG_TRACEPOINT_EVENT_CODE_MAP(kvm_exit, kvm_x86_exit,
+ 	TP_PROTO(unsigned int exit_reason, struct kvm_vcpu *vcpu, u32 isa),
+ 	TP_ARGS(exit_reason, vcpu, isa),
+@@ -124,13 +155,32 @@ LTTNG_TRACEPOINT_EVENT_CODE_MAP(kvm_exit, kvm_x86_exit,
+ 	),
+ 
+ 	TP_code_pre(
+-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,7,0))
+ 		kvm_x86_ops.get_exit_info(vcpu, &tp_locvar->info1,
+ 				&tp_locvar->info2);
++	),
++
++	TP_FIELDS(
++		ctf_integer(unsigned int, exit_reason, exit_reason)
++		ctf_integer(unsigned long, guest_rip, kvm_rip_read(vcpu))
++		ctf_integer(u32, isa, isa)
++		ctf_integer(u64, info1, tp_locvar->info1)
++		ctf_integer(u64, info2, tp_locvar->info2)
++	),
++
++	TP_code_post()
++)
+ #else
++LTTNG_TRACEPOINT_EVENT_CODE_MAP(kvm_exit, kvm_x86_exit,
++	TP_PROTO(unsigned int exit_reason, struct kvm_vcpu *vcpu, u32 isa),
++	TP_ARGS(exit_reason, vcpu, isa),
++
++	TP_locvar(
++		u64 info1, info2;
++	),
++
++	TP_code_pre(
+ 		kvm_x86_ops->get_exit_info(vcpu, &tp_locvar->info1,
+ 				&tp_locvar->info2);
+-#endif
+ 	),
+ 
+ 	TP_FIELDS(
+@@ -143,6 +193,7 @@ LTTNG_TRACEPOINT_EVENT_CODE_MAP(kvm_exit, kvm_x86_exit,
+ 
+ 	TP_code_post()
+ )
++#endif
+ 
+ /*
+  * Tracepoint for kvm interrupt injection:
+diff --git a/instrumentation/events/lttng-module/btrfs.h b/instrumentation/events/lttng-module/btrfs.h
+index 7b290085..efe7af96 100644
+--- a/instrumentation/events/lttng-module/btrfs.h
++++ b/instrumentation/events/lttng-module/btrfs.h
+@@ -346,7 +346,29 @@ LTTNG_TRACEPOINT_EVENT(btrfs_handle_em_exist,
  )
  #endif
  
-+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,9,0) || \
-+	LTTNG_KERNEL_RANGE(5,8,6, 5,9,0))
-+LTTNG_TRACEPOINT_EVENT(ext4_discard_preallocations,
-+	TP_PROTO(struct inode *inode, unsigned int len, unsigned int needed),
+-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,6,0))
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,10,0))
++LTTNG_TRACEPOINT_EVENT_CLASS(btrfs__ordered_extent,
 +
-+	TP_ARGS(inode, len, needed),
++	TP_PROTO(const struct btrfs_inode *inode,
++		 const struct btrfs_ordered_extent *ordered),
++
++	TP_ARGS(inode, ordered),
 +
 +	TP_FIELDS(
-+		ctf_integer(dev_t, dev, inode->i_sb->s_dev)
-+		ctf_integer(ino_t, ino, inode->i_ino)
-+		ctf_integer(unsigned int, len, len)
-+		ctf_integer(unsigned int, needed, needed)
++		ctf_array(u8, fsid, inode->root->lttng_fs_info_fsid, BTRFS_UUID_SIZE)
++		ctf_integer(ino_t, ino, btrfs_ino(inode))
++		ctf_integer(u64, file_offset, ordered->file_offset)
++		ctf_integer(u64, start, ordered->disk_bytenr)
++		ctf_integer(u64, len, ordered->num_bytes)
++		ctf_integer(u64, disk_len, ordered->disk_num_bytes)
++		ctf_integer(u64, bytes_left, ordered->bytes_left)
++		ctf_integer(unsigned long, flags, ordered->flags)
++		ctf_integer(int, compress_type, ordered->compress_type)
++		ctf_integer(int, refs, refcount_read(&ordered->refs))
++		ctf_integer(u64, root_objectid, inode->root->root_key.objectid)
++	)
++)
++#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(5,6,0))
+ LTTNG_TRACEPOINT_EVENT_CLASS(btrfs__ordered_extent,
+ 
+ 	TP_PROTO(const struct inode *inode,
+@@ -458,7 +480,39 @@ LTTNG_TRACEPOINT_EVENT_CLASS(btrfs__ordered_extent,
+ )
+ #endif
+ 
+-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0) || \
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,10,0))
++LTTNG_TRACEPOINT_EVENT_INSTANCE(btrfs__ordered_extent, btrfs_ordered_extent_add,
++
++	TP_PROTO(const struct btrfs_inode *inode,
++		 const struct btrfs_ordered_extent *ordered),
++
++	TP_ARGS(inode, ordered)
++)
++
++LTTNG_TRACEPOINT_EVENT_INSTANCE(btrfs__ordered_extent, btrfs_ordered_extent_remove,
++
++	TP_PROTO(const struct btrfs_inode *inode,
++		 const struct btrfs_ordered_extent *ordered),
++
++	TP_ARGS(inode, ordered)
++)
++
++LTTNG_TRACEPOINT_EVENT_INSTANCE(btrfs__ordered_extent, btrfs_ordered_extent_start,
++
++	TP_PROTO(const struct btrfs_inode *inode,
++		 const struct btrfs_ordered_extent *ordered),
++
++	TP_ARGS(inode, ordered)
++)
++
++LTTNG_TRACEPOINT_EVENT_INSTANCE(btrfs__ordered_extent, btrfs_ordered_extent_put,
++
++	TP_PROTO(const struct btrfs_inode *inode,
++		 const struct btrfs_ordered_extent *ordered),
++
++	TP_ARGS(inode, ordered)
++)
++#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0) || \
+ 	LTTNG_SLE_KERNEL_RANGE(4,4,73,5,0,0, 4,4,73,6,0,0) || \
+ 	LTTNG_SLE_KERNEL_RANGE(4,4,82,6,0,0, 4,4,82,7,0,0) || \
+ 	LTTNG_SLE_KERNEL_RANGE(4,4,92,6,0,0, 4,4,92,7,0,0) || \
+@@ -494,7 +548,41 @@ LTTNG_TRACEPOINT_EVENT_INSTANCE(btrfs__ordered_extent, btrfs_ordered_extent_put,
+ 
+ 	TP_ARGS(inode, ordered)
+ )
++#else
++LTTNG_TRACEPOINT_EVENT_INSTANCE(btrfs__ordered_extent, btrfs_ordered_extent_add,
++
++	TP_PROTO(struct inode *inode, struct btrfs_ordered_extent *ordered),
++
++	TP_ARGS(inode, ordered)
++)
++
++LTTNG_TRACEPOINT_EVENT_INSTANCE(btrfs__ordered_extent, btrfs_ordered_extent_remove,
++
++	TP_PROTO(struct inode *inode, struct btrfs_ordered_extent *ordered),
+ 
++	TP_ARGS(inode, ordered)
++)
++
++LTTNG_TRACEPOINT_EVENT_INSTANCE(btrfs__ordered_extent, btrfs_ordered_extent_start,
++
++	TP_PROTO(struct inode *inode, struct btrfs_ordered_extent *ordered),
++
++	TP_ARGS(inode, ordered)
++)
++
++LTTNG_TRACEPOINT_EVENT_INSTANCE(btrfs__ordered_extent, btrfs_ordered_extent_put,
++
++	TP_PROTO(struct inode *inode, struct btrfs_ordered_extent *ordered),
++
++	TP_ARGS(inode, ordered)
++)
++#endif
++
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0) || \
++	LTTNG_SLE_KERNEL_RANGE(4,4,73,5,0,0, 4,4,73,6,0,0) || \
++	LTTNG_SLE_KERNEL_RANGE(4,4,82,6,0,0, 4,4,82,7,0,0) || \
++	LTTNG_SLE_KERNEL_RANGE(4,4,92,6,0,0, 4,4,92,7,0,0) || \
++	LTTNG_SLE_KERNEL_RANGE(4,4,103,6,0,0, 4,5,0,0,0,0))
+ LTTNG_TRACEPOINT_EVENT_CLASS(btrfs__writepage,
+ 
+ 	TP_PROTO(const struct page *page, const struct inode *inode,
+@@ -563,34 +651,6 @@ LTTNG_TRACEPOINT_EVENT(btrfs_sync_file,
+ 	)
+ )
+ #else
+-LTTNG_TRACEPOINT_EVENT_INSTANCE(btrfs__ordered_extent, btrfs_ordered_extent_add,
+-
+-	TP_PROTO(struct inode *inode, struct btrfs_ordered_extent *ordered),
+-
+-	TP_ARGS(inode, ordered)
+-)
+-
+-LTTNG_TRACEPOINT_EVENT_INSTANCE(btrfs__ordered_extent, btrfs_ordered_extent_remove,
+-
+-	TP_PROTO(struct inode *inode, struct btrfs_ordered_extent *ordered),
+-
+-	TP_ARGS(inode, ordered)
+-)
+-
+-LTTNG_TRACEPOINT_EVENT_INSTANCE(btrfs__ordered_extent, btrfs_ordered_extent_start,
+-
+-	TP_PROTO(struct inode *inode, struct btrfs_ordered_extent *ordered),
+-
+-	TP_ARGS(inode, ordered)
+-)
+-
+-LTTNG_TRACEPOINT_EVENT_INSTANCE(btrfs__ordered_extent, btrfs_ordered_extent_put,
+-
+-	TP_PROTO(struct inode *inode, struct btrfs_ordered_extent *ordered),
+-
+-	TP_ARGS(inode, ordered)
+-)
+-
+ LTTNG_TRACEPOINT_EVENT_CLASS(btrfs__writepage,
+ 
+ 	TP_PROTO(struct page *page, struct inode *inode,
+@@ -1856,7 +1916,48 @@ LTTNG_TRACEPOINT_EVENT_INSTANCE(btrfs__reserved_extent,  btrfs_reserved_extent_f
+ 
+ #endif /* #else #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,10,0)) */
+ 
+-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,5,0))
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,10,0) || \
++	LTTNG_KERNEL_RANGE(5,9,5, 5,10,0) || \
++	LTTNG_KERNEL_RANGE(5,4,78, 5,5,0))
++LTTNG_TRACEPOINT_EVENT_MAP(find_free_extent,
++
++	btrfs_find_free_extent,
++
++	TP_PROTO(const struct btrfs_root *root, u64 num_bytes, u64 empty_size,
++		 u64 data),
++
++	TP_ARGS(root, num_bytes, empty_size, data),
++
++	TP_FIELDS(
++		ctf_array(u8, fsid, root->lttng_fs_info_fsid, BTRFS_UUID_SIZE)
++		ctf_integer(u64, root_objectid, root->root_key.objectid)
++		ctf_integer(u64, num_bytes, num_bytes)
++		ctf_integer(u64, empty_size, empty_size)
++		ctf_integer(u64, data, data)
++	)
++)
++
++#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(5,5,0))
++
++LTTNG_TRACEPOINT_EVENT_MAP(find_free_extent,
++
++	btrfs_find_free_extent,
++
++	TP_PROTO(const struct btrfs_fs_info *fs_info, u64 num_bytes, u64 empty_size,
++		 u64 data),
++
++	TP_ARGS(fs_info, num_bytes, empty_size, data),
++
++	TP_FIELDS(
++		ctf_array(u8, fsid, lttng_fs_info_fsid, BTRFS_UUID_SIZE)
++		ctf_integer(u64, num_bytes, num_bytes)
++		ctf_integer(u64, empty_size, empty_size)
++		ctf_integer(u64, data, data)
++	)
++)
++
++#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4,18,0))
++
+ LTTNG_TRACEPOINT_EVENT_MAP(find_free_extent,
+ 
+ 	btrfs_find_free_extent,
+@@ -1874,6 +1975,86 @@ LTTNG_TRACEPOINT_EVENT_MAP(find_free_extent,
+ 	)
+ )
+ 
++#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0))
++
++LTTNG_TRACEPOINT_EVENT_MAP(find_free_extent,
++
++	btrfs_find_free_extent,
++
++	TP_PROTO(const struct btrfs_fs_info *fs_info, u64 num_bytes, u64 empty_size,
++		 u64 data),
++
++	TP_ARGS(fs_info, num_bytes, empty_size, data),
++
++	TP_FIELDS(
++		ctf_array(u8, fsid, lttng_fs_info_fsid, BTRFS_UUID_SIZE)
++		ctf_integer(u64, num_bytes, num_bytes)
++		ctf_integer(u64, empty_size, empty_size)
++		ctf_integer(u64, data, data)
++	)
++)
++
++#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4,10,0))
++
++LTTNG_TRACEPOINT_EVENT_MAP(find_free_extent,
++
++	btrfs_find_free_extent,
++
++	TP_PROTO(struct btrfs_fs_info *fs_info, u64 num_bytes, u64 empty_size,
++		 u64 data),
++
++	TP_ARGS(fs_info, num_bytes, empty_size, data),
++
++	TP_FIELDS(
++		ctf_array(u8, fsid, lttng_fs_info_fsid, BTRFS_UUID_SIZE)
++		ctf_integer(u64, num_bytes, num_bytes)
++		ctf_integer(u64, empty_size, empty_size)
++		ctf_integer(u64, data, data)
++	)
++)
++
++#elif (LTTNG_SLE_KERNEL_RANGE(4,4,73,5,0,0, 4,4,73,6,0,0) || \
++	LTTNG_SLE_KERNEL_RANGE(4,4,82,6,0,0, 4,4,82,7,0,0) || \
++	LTTNG_SLE_KERNEL_RANGE(4,4,92,6,0,0, 4,4,92,7,0,0) || \
++	LTTNG_SLE_KERNEL_RANGE(4,4,103,6,0,0, 4,5,0,0,0,0))
++
++LTTNG_TRACEPOINT_EVENT_MAP(find_free_extent,
++
++	btrfs_find_free_extent,
++
++	TP_PROTO(const struct btrfs_root *root, u64 num_bytes, u64 empty_size,
++		 u64 data),
++
++	TP_ARGS(root, num_bytes, empty_size, data),
++
++	TP_FIELDS(
++		ctf_integer(u64, root_objectid, root->root_key.objectid)
++		ctf_integer(u64, num_bytes, num_bytes)
++		ctf_integer(u64, empty_size, empty_size)
++		ctf_integer(u64, data, data)
++	)
++)
++#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0))
++
++LTTNG_TRACEPOINT_EVENT_MAP(find_free_extent,
++
++	btrfs_find_free_extent,
++
++	TP_PROTO(struct btrfs_root *root, u64 num_bytes, u64 empty_size,
++		 u64 data),
++
++	TP_ARGS(root, num_bytes, empty_size, data),
++
++	TP_FIELDS(
++		ctf_integer(u64, root_objectid, root->root_key.objectid)
++		ctf_integer(u64, num_bytes, num_bytes)
++		ctf_integer(u64, empty_size, empty_size)
++		ctf_integer(u64, data, data)
++	)
++)
++#endif
++
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,5,0))
+ LTTNG_TRACEPOINT_EVENT_CLASS(btrfs__reserve_extent,
+ 
+ 	TP_PROTO(const struct btrfs_block_group *block_group, u64 start,
+@@ -1907,22 +2088,6 @@ LTTNG_TRACEPOINT_EVENT_INSTANCE(btrfs__reserve_extent, btrfs_reserve_extent_clus
+ )
+ 
+ #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4,18,0))
+-LTTNG_TRACEPOINT_EVENT_MAP(find_free_extent,
+-
+-	btrfs_find_free_extent,
+-
+-	TP_PROTO(const struct btrfs_fs_info *fs_info, u64 num_bytes, u64 empty_size,
+-		 u64 data),
+-
+-	TP_ARGS(fs_info, num_bytes, empty_size, data),
+-
+-	TP_FIELDS(
+-		ctf_array(u8, fsid, lttng_fs_info_fsid, BTRFS_UUID_SIZE)
+-		ctf_integer(u64, num_bytes, num_bytes)
+-		ctf_integer(u64, empty_size, empty_size)
+-		ctf_integer(u64, data, data)
+-	)
+-)
+ 
+ LTTNG_TRACEPOINT_EVENT_CLASS(btrfs__reserve_extent,
+ 
+@@ -1957,22 +2122,6 @@ LTTNG_TRACEPOINT_EVENT_INSTANCE(btrfs__reserve_extent, btrfs_reserve_extent_clus
+ )
+ 
+ #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0))
+-LTTNG_TRACEPOINT_EVENT_MAP(find_free_extent,
+-
+-	btrfs_find_free_extent,
+-
+-	TP_PROTO(const struct btrfs_fs_info *fs_info, u64 num_bytes, u64 empty_size,
+-		 u64 data),
+-
+-	TP_ARGS(fs_info, num_bytes, empty_size, data),
+-
+-	TP_FIELDS(
+-		ctf_array(u8, fsid, lttng_fs_info_fsid, BTRFS_UUID_SIZE)
+-		ctf_integer(u64, num_bytes, num_bytes)
+-		ctf_integer(u64, empty_size, empty_size)
+-		ctf_integer(u64, data, data)
+-	)
+-)
+ 
+ LTTNG_TRACEPOINT_EVENT_CLASS(btrfs__reserve_extent,
+ 
+@@ -2011,23 +2160,6 @@ LTTNG_TRACEPOINT_EVENT_INSTANCE(btrfs__reserve_extent, btrfs_reserve_extent_clus
+ 
+ #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4,10,0))
+ 
+-LTTNG_TRACEPOINT_EVENT_MAP(find_free_extent,
+-
+-	btrfs_find_free_extent,
+-
+-	TP_PROTO(struct btrfs_fs_info *fs_info, u64 num_bytes, u64 empty_size,
+-		 u64 data),
+-
+-	TP_ARGS(fs_info, num_bytes, empty_size, data),
+-
+-	TP_FIELDS(
+-		ctf_array(u8, fsid, lttng_fs_info_fsid, BTRFS_UUID_SIZE)
+-		ctf_integer(u64, num_bytes, num_bytes)
+-		ctf_integer(u64, empty_size, empty_size)
+-		ctf_integer(u64, data, data)
+-	)
+-)
+-
+ LTTNG_TRACEPOINT_EVENT_CLASS(btrfs__reserve_extent,
+ 
+ 	TP_PROTO(struct btrfs_fs_info *fs_info,
+@@ -2066,23 +2198,6 @@ LTTNG_TRACEPOINT_EVENT_INSTANCE(btrfs__reserve_extent, btrfs_reserve_extent_clus
+ 	LTTNG_SLE_KERNEL_RANGE(4,4,92,6,0,0, 4,4,92,7,0,0) || \
+ 	LTTNG_SLE_KERNEL_RANGE(4,4,103,6,0,0, 4,5,0,0,0,0))
+ 
+-LTTNG_TRACEPOINT_EVENT_MAP(find_free_extent,
+-
+-	btrfs_find_free_extent,
+-
+-	TP_PROTO(const struct btrfs_root *root, u64 num_bytes, u64 empty_size,
+-		 u64 data),
+-
+-	TP_ARGS(root, num_bytes, empty_size, data),
+-
+-	TP_FIELDS(
+-		ctf_integer(u64, root_objectid, root->root_key.objectid)
+-		ctf_integer(u64, num_bytes, num_bytes)
+-		ctf_integer(u64, empty_size, empty_size)
+-		ctf_integer(u64, data, data)
+-	)
+-)
+-
+ LTTNG_TRACEPOINT_EVENT_CLASS(btrfs__reserve_extent,
+ 
+ 	TP_PROTO(const struct btrfs_root *root,
+@@ -2120,23 +2235,6 @@ LTTNG_TRACEPOINT_EVENT_INSTANCE(btrfs__reserve_extent, btrfs_reserve_extent_clus
+ 
+ #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0))
+ 
+-LTTNG_TRACEPOINT_EVENT_MAP(find_free_extent,
+-
+-	btrfs_find_free_extent,
+-
+-	TP_PROTO(struct btrfs_root *root, u64 num_bytes, u64 empty_size,
+-		 u64 data),
+-
+-	TP_ARGS(root, num_bytes, empty_size, data),
+-
+-	TP_FIELDS(
+-		ctf_integer(u64, root_objectid, root->root_key.objectid)
+-		ctf_integer(u64, num_bytes, num_bytes)
+-		ctf_integer(u64, empty_size, empty_size)
+-		ctf_integer(u64, data, data)
+-	)
+-)
+-
+ LTTNG_TRACEPOINT_EVENT_CLASS(btrfs__reserve_extent,
+ 
+ 	TP_PROTO(struct btrfs_root *root,
+diff --git a/instrumentation/events/lttng-module/ext4.h b/instrumentation/events/lttng-module/ext4.h
+index b172c8d9..6e74abad 100644
+--- a/instrumentation/events/lttng-module/ext4.h
++++ b/instrumentation/events/lttng-module/ext4.h
+@@ -1274,6 +1274,18 @@ LTTNG_TRACEPOINT_EVENT(ext4_ext_load_extent,
+ 	)
+ )
+ 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,10,0))
++LTTNG_TRACEPOINT_EVENT(ext4_load_inode,
++	TP_PROTO(struct super_block *sb, unsigned long ino),
++
++	TP_ARGS(sb, ino),
++
++	TP_FIELDS(
++		ctf_integer(dev_t, dev, sb->s_dev)
++		ctf_integer(ino_t, ino, ino)
 +	)
 +)
 +#else
- LTTNG_TRACEPOINT_EVENT(ext4_discard_preallocations,
+ LTTNG_TRACEPOINT_EVENT(ext4_load_inode,
  	TP_PROTO(struct inode *inode),
  
-@@ -470,6 +485,7 @@ LTTNG_TRACEPOINT_EVENT(ext4_discard_preallocations,
+@@ -1284,6 +1296,7 @@ LTTNG_TRACEPOINT_EVENT(ext4_load_inode,
  		ctf_integer(ino_t, ino, inode->i_ino)
  	)
  )
 +#endif
  
- LTTNG_TRACEPOINT_EVENT(ext4_mb_discard_preallocations,
- 	TP_PROTO(struct super_block *sb, int needed),
-@@ -878,12 +894,26 @@ LTTNG_TRACEPOINT_EVENT_INSTANCE(ext4__bitmap_load, ext4_mb_buddy_bitmap_load,
- 	TP_ARGS(sb, group)
- )
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,5,0))
  
-+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,9,0))
-+LTTNG_TRACEPOINT_EVENT(ext4_read_block_bitmap_load,
-+	TP_PROTO(struct super_block *sb, unsigned long group, bool prefetch),
+@@ -1895,6 +1908,34 @@ LTTNG_TRACEPOINT_EVENT(ext4_es_shrink_exit,
+ 
+ #endif
+ 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,10,0))
++LTTNG_TRACEPOINT_EVENT(ext4_fc_replay_scan,
++	TP_PROTO(struct super_block *sb, int error, int off),
 +
-+	TP_ARGS(sb, group, prefetch),
++	TP_ARGS(sb, error, off),
 +
 +	TP_FIELDS(
 +		ctf_integer(dev_t, dev, sb->s_dev)
-+		ctf_integer(__u32, group, group)
-+		ctf_integer(bool, prefetch, prefetch)
++		ctf_integer(int, error, error)
++		ctf_integer(int, off, off)
 +	)
 +)
-+#else
- LTTNG_TRACEPOINT_EVENT_INSTANCE(ext4__bitmap_load, ext4_read_block_bitmap_load,
- 
- 	TP_PROTO(struct super_block *sb, unsigned long group),
- 
- 	TP_ARGS(sb, group)
- )
-+#endif
- 
- LTTNG_TRACEPOINT_EVENT_INSTANCE(ext4__bitmap_load, ext4_load_inode_bitmap,
- 
-diff --git a/instrumentation/events/lttng-module/i2c.h b/instrumentation/events/lttng-module/i2c.h
-index dcbabf6..131d134 100644
---- a/instrumentation/events/lttng-module/i2c.h
-+++ b/instrumentation/events/lttng-module/i2c.h
-@@ -23,7 +23,7 @@ LTTNG_TRACEPOINT_EVENT_CODE(i2c_write,
- 
- 	TP_code_pre(
- 		tp_locvar->extract_sensitive_payload =
--			READ_ONCE(extract_sensitive_payload);
-+			LTTNG_READ_ONCE(extract_sensitive_payload);
- 	),
- 
- 	TP_FIELDS(
-@@ -78,7 +78,7 @@ LTTNG_TRACEPOINT_EVENT_CODE(i2c_reply,
- 
- 	TP_code_pre(
- 		tp_locvar->extract_sensitive_payload =
--			READ_ONCE(extract_sensitive_payload);
-+			LTTNG_READ_ONCE(extract_sensitive_payload);
- 	),
- 
- 	TP_FIELDS(
-diff --git a/instrumentation/events/lttng-module/rcu.h b/instrumentation/events/lttng-module/rcu.h
-index 6a0b58d..24bd51d 100644
---- a/instrumentation/events/lttng-module/rcu.h
-+++ b/instrumentation/events/lttng-module/rcu.h
-@@ -394,7 +394,8 @@ LTTNG_TRACEPOINT_EVENT(rcu_fqs,
-  */
- #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,6,0))	\
- 	|| LTTNG_KERNEL_RANGE(5,5,6, 5,6,0)		\
--	|| LTTNG_KERNEL_RANGE(5,4,22, 5,5,0)
-+	|| LTTNG_KERNEL_RANGE(5,4,22, 5,5,0)		\
-+	|| LTTNG_UBUNTU_KERNEL_RANGE(5,0,21,46, 5,1,0,0)
- LTTNG_TRACEPOINT_EVENT(rcu_dyntick,
- 
- 	TP_PROTO(const char *polarity, long oldnesting, long newnesting, int dynticks),
-diff --git a/instrumentation/events/lttng-module/writeback.h b/instrumentation/events/lttng-module/writeback.h
-index affb4eb..0ce4915 100644
---- a/instrumentation/events/lttng-module/writeback.h
-+++ b/instrumentation/events/lttng-module/writeback.h
-@@ -46,7 +46,21 @@ static inline struct backing_dev_info *lttng_inode_to_bdi(struct inode *inode)
- 
- #endif
- 
--#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,0,0))
-+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,9,0))
-+#define show_inode_state(state)					\
-+	__print_flags(state, "|",				\
-+		{I_DIRTY_SYNC,		"I_DIRTY_SYNC"},	\
-+		{I_DIRTY_DATASYNC,	"I_DIRTY_DATASYNC"},	\
-+		{I_DIRTY_PAGES,		"I_DIRTY_PAGES"},	\
-+		{I_NEW,			"I_NEW"},		\
-+		{I_WILL_FREE,		"I_WILL_FREE"},		\
-+		{I_FREEING,		"I_FREEING"},		\
-+		{I_CLEAR,		"I_CLEAR"},		\
-+		{I_SYNC,		"I_SYNC"},		\
-+		{I_DIRTY_TIME,		"I_DIRTY_TIME"},	\
-+		{I_REFERENCED,		"I_REFERENCED"}		\
-+	)
-+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4,0,0))
- #define show_inode_state(state)					\
- 	__print_flags(state, "|",				\
- 		{I_DIRTY_SYNC,		"I_DIRTY_SYNC"},	\
-@@ -370,34 +384,55 @@ LTTNG_TRACEPOINT_EVENT_WBC_INSTANCE(wbc_balance_dirty_wait, writeback_wbc_balanc
- #endif
- LTTNG_TRACEPOINT_EVENT_WBC_INSTANCE(wbc_writepage, writeback_wbc_writepage)
- 
--#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,1,0))
-+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,9,0) || \
-+	LTTNG_KERNEL_RANGE(5,8,6, 5,9,0) || \
-+	LTTNG_KERNEL_RANGE(5,4,62, 5,5,0) || \
-+	LTTNG_KERNEL_RANGE(4,19,143, 4,20,0) || \
-+	LTTNG_KERNEL_RANGE(4,14,196, 4,15,0) || \
-+	LTTNG_KERNEL_RANGE(4,9,235, 4,10,0) || \
-+	LTTNG_KERNEL_RANGE(4,4,235, 4,5,0) || \
-+	LTTNG_UBUNTU_KERNEL_RANGE(4,15,18,119, 4,16,0,0))
-+LTTNG_TRACEPOINT_EVENT(writeback_queue_io,
-+	TP_PROTO(struct bdi_writeback *wb,
-+		 struct wb_writeback_work *work,
-+		 unsigned long dirtied_before,
-+		 int moved),
-+	TP_ARGS(wb, work, dirtied_before, moved),
++
++LTTNG_TRACEPOINT_EVENT(ext4_fc_replay,
++	TP_PROTO(struct super_block *sb, int tag, int ino, int priv1, int priv2),
++
++	TP_ARGS(sb, tag, ino, priv1, priv2),
++
 +	TP_FIELDS(
-+		ctf_array_text(char, name, dev_name(wb->bdi->dev), 32)
-+		ctf_integer(unsigned long, older, dirtied_before)
-+		ctf_integer(int, moved, moved)
++		ctf_integer(dev_t, dev, sb->s_dev)
++		ctf_integer(int, tag, tag)
++		ctf_integer(int, ino, ino)
++		ctf_integer(int, priv1, priv1)
++		ctf_integer(int, priv2, priv2)
 +	)
 +)
-+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0))
- LTTNG_TRACEPOINT_EVENT(writeback_queue_io,
- 	TP_PROTO(struct bdi_writeback *wb,
--#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0))
- 		 struct wb_writeback_work *work,
--#else
--		 unsigned long *older_than_this,
--#endif
- 		 int moved),
--#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0))
- 	TP_ARGS(wb, work, moved),
--#else
-+	TP_FIELDS(
-+		ctf_array_text(char, name, dev_name(wb->bdi->dev), 32)
-+		ctf_integer(int, moved, moved)
-+	)
-+)
-+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3,1,0))
-+LTTNG_TRACEPOINT_EVENT(writeback_queue_io,
-+	TP_PROTO(struct bdi_writeback *wb,
-+		 unsigned long *older_than_this,
-+		 int moved),
- 	TP_ARGS(wb, older_than_this, moved),
--#endif
- 	TP_FIELDS(
- 		ctf_array_text(char, name, dev_name(wb->bdi->dev), 32)
--#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0))
--#else
- 		ctf_integer(unsigned long, older,
- 			older_than_this ? *older_than_this : 0)
- 		ctf_integer(long, age,
- 			older_than_this ?
- 				(jiffies - *older_than_this) * 1000 / HZ
- 				: -1)
--#endif
- 		ctf_integer(int, moved, moved)
- 	)
- )
 +#endif
- 
- #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,8,0))
- LTTNG_TRACEPOINT_EVENT_MAP(global_dirty_state,
-@@ -446,7 +481,7 @@ LTTNG_TRACEPOINT_EVENT_MAP(global_dirty_state,
- 		ctf_integer(unsigned long, dirty_limit, global_dirty_limit)
- 	)
- )
--#else
-+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3,1,0))
- LTTNG_TRACEPOINT_EVENT_MAP(global_dirty_state,
- 
- 	writeback_global_dirty_state,
-@@ -471,7 +506,6 @@ LTTNG_TRACEPOINT_EVENT_MAP(global_dirty_state,
- 	)
- )
- #endif
--#endif
- 
- #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0))
- 
-diff --git a/lib/ringbuffer/backend.h b/lib/ringbuffer/backend.h
-index da937f2..43e1d47 100644
---- a/lib/ringbuffer/backend.h
-+++ b/lib/ringbuffer/backend.h
-@@ -156,7 +156,7 @@ size_t lib_ring_buffer_do_strcpy(const struct lib_ring_buffer_config *config,
- 		 * Only read source character once, in case it is
- 		 * modified concurrently.
- 		 */
--		c = READ_ONCE(src[count]);
-+		c = LTTNG_READ_ONCE(src[count]);
- 		if (!c)
- 			break;
- 		lib_ring_buffer_do_copy(config, &dest[count], &c, 1);
-diff --git a/lib/ringbuffer/backend_internal.h b/lib/ringbuffer/backend_internal.h
-index 2d6a345..1226fd8 100644
---- a/lib/ringbuffer/backend_internal.h
-+++ b/lib/ringbuffer/backend_internal.h
-@@ -367,7 +367,7 @@ void lib_ring_buffer_clear_noref(const struct lib_ring_buffer_config *config,
- 	 * Performing a volatile access to read the sb_pages, because we want to
- 	 * read a coherent version of the pointer and the associated noref flag.
- 	 */
--	id = READ_ONCE(bufb->buf_wsb[idx].id);
-+	id = LTTNG_READ_ONCE(bufb->buf_wsb[idx].id);
- 	for (;;) {
- 		/* This check is called on the fast path for each record. */
- 		if (likely(!subbuffer_id_is_noref(config, id))) {
-diff --git a/lib/ringbuffer/frontend.h b/lib/ringbuffer/frontend.h
-index 6f516d9..41382fe 100644
---- a/lib/ringbuffer/frontend.h
-+++ b/lib/ringbuffer/frontend.h
-@@ -79,7 +79,7 @@ void *channel_destroy(struct channel *chan);
- #define for_each_channel_cpu(cpu, chan)					\
- 	for ((cpu) = -1;						\
- 		({ (cpu) = cpumask_next(cpu, (chan)->backend.cpumask);	\
--		   smp_read_barrier_depends(); (cpu) < nr_cpu_ids; });)
-+		   smp_rmb(); (cpu) < nr_cpu_ids; });)
- 
- extern struct lib_ring_buffer *channel_get_ring_buffer(
- 				const struct lib_ring_buffer_config *config,
-@@ -155,7 +155,7 @@ static inline
- int lib_ring_buffer_is_finalized(const struct lib_ring_buffer_config *config,
- 				 struct lib_ring_buffer *buf)
- {
--	int finalized = READ_ONCE(buf->finalized);
-+	int finalized = LTTNG_READ_ONCE(buf->finalized);
- 	/*
- 	 * Read finalized before counters.
- 	 */
-diff --git a/lib/ringbuffer/ring_buffer_frontend.c b/lib/ringbuffer/ring_buffer_frontend.c
-index 3cab365..4980d20 100644
---- a/lib/ringbuffer/ring_buffer_frontend.c
-+++ b/lib/ringbuffer/ring_buffer_frontend.c
-@@ -1074,7 +1074,7 @@ int lib_ring_buffer_snapshot(struct lib_ring_buffer *buf,
- 	int finalized;
- 
- retry:
--	finalized = READ_ONCE(buf->finalized);
-+	finalized = LTTNG_READ_ONCE(buf->finalized);
- 	/*
- 	 * Read finalized before counters.
- 	 */
-@@ -1245,7 +1245,7 @@ int lib_ring_buffer_get_subbuf(struct lib_ring_buffer *buf,
- 		return -EBUSY;
- 	}
- retry:
--	finalized = READ_ONCE(buf->finalized);
-+	finalized = LTTNG_READ_ONCE(buf->finalized);
- 	/*
- 	 * Read finalized before counters.
- 	 */
-diff --git a/lib/ringbuffer/ring_buffer_iterator.c b/lib/ringbuffer/ring_buffer_iterator.c
-index d25db72..7b4f20a 100644
---- a/lib/ringbuffer/ring_buffer_iterator.c
-+++ b/lib/ringbuffer/ring_buffer_iterator.c
-@@ -46,7 +46,7 @@ restart:
- 	switch (iter->state) {
- 	case ITER_GET_SUBBUF:
- 		ret = lib_ring_buffer_get_next_subbuf(buf);
--		if (ret && !READ_ONCE(buf->finalized)
-+		if (ret && !LTTNG_READ_ONCE(buf->finalized)
- 		    && config->alloc == RING_BUFFER_ALLOC_GLOBAL) {
- 			/*
- 			 * Use "pull" scheme for global buffers. The reader
-diff --git a/lttng-abi.c b/lttng-abi.c
-index 64ea99d..b33879d 100644
---- a/lttng-abi.c
-+++ b/lttng-abi.c
-@@ -1264,6 +1264,46 @@ nomem:
- 	return ret;
- }
- 
-+static
-+int lttng_abi_validate_event_param(struct lttng_kernel_event *event_param)
-+{
-+	/* Limit ABI to implemented features. */
-+	switch (event_param->instrumentation) {
-+	case LTTNG_KERNEL_SYSCALL:
-+		switch (event_param->u.syscall.entryexit) {
-+		case LTTNG_KERNEL_SYSCALL_ENTRYEXIT:
-+			break;
-+		default:
-+			return -EINVAL;
-+		}
-+		switch (event_param->u.syscall.abi) {
-+		case LTTNG_KERNEL_SYSCALL_ABI_ALL:
-+			break;
-+		default:
-+			return -EINVAL;
-+		}
-+		switch (event_param->u.syscall.match) {
-+		case LTTNG_SYSCALL_MATCH_NAME:
-+			break;
-+		default:
-+			return -EINVAL;
-+		}
-+		break;
 +
-+	case LTTNG_KERNEL_TRACEPOINT:	/* Fallthrough */
-+	case LTTNG_KERNEL_KPROBE:	/* Fallthrough */
-+	case LTTNG_KERNEL_KRETPROBE:	/* Fallthrough */
-+	case LTTNG_KERNEL_NOOP:		/* Fallthrough */
-+	case LTTNG_KERNEL_UPROBE:
-+		break;
-+
-+	case LTTNG_KERNEL_FUNCTION:	/* Fallthrough */
-+	default:
-+		return -EINVAL;
-+	}
-+	return 0;
-+}
-+
- static
- int lttng_abi_create_event(struct file *channel_file,
- 			   struct lttng_kernel_event *event_param)
-@@ -1305,6 +1345,9 @@ int lttng_abi_create_event(struct file *channel_file,
- 		ret = -EOVERFLOW;
- 		goto refcount_error;
- 	}
-+	ret = lttng_abi_validate_event_param(event_param);
-+	if (ret)
-+		goto event_error;
- 	if (event_param->instrumentation == LTTNG_KERNEL_TRACEPOINT
- 			|| event_param->instrumentation == LTTNG_KERNEL_SYSCALL) {
- 		struct lttng_enabler *enabler;
-diff --git a/lttng-abi.h b/lttng-abi.h
-index 1d356ab..51d60e5 100644
---- a/lttng-abi.h
-+++ b/lttng-abi.h
-@@ -90,6 +90,31 @@ struct lttng_kernel_event_callsite {
- 	} u;
- } __attribute__((packed));
+ #endif /* LTTNG_TRACE_EXT4_H */
  
-+enum lttng_kernel_syscall_entryexit {
-+	LTTNG_KERNEL_SYSCALL_ENTRYEXIT = 0,
-+	LTTNG_KERNEL_SYSCALL_ENTRY = 1,		/* Not implemented. */
-+	LTTNG_KERNEL_SYSCALL_EXIT = 2,		/* Not implemented. */
-+};
-+
-+enum lttng_kernel_syscall_abi {
-+	LTTNG_KERNEL_SYSCALL_ABI_ALL = 0,
-+	LTTNG_KERNEL_SYSCALL_ABI_NATIVE = 1,	/* Not implemented. */
-+	LTTNG_KERNEL_SYSCALL_ABI_COMPAT = 2,	/* Not implemented. */
-+};
-+
-+enum lttng_kernel_syscall_match {
-+	LTTNG_SYSCALL_MATCH_NAME = 0,
-+	LTTNG_SYSCALL_MATCH_NR = 1,		/* Not implemented. */
-+};
-+
-+struct lttng_kernel_syscall {
-+	uint8_t entryexit;	/* enum lttng_kernel_syscall_entryexit */
-+	uint8_t abi;		/* enum lttng_kernel_syscall_abi */
-+	uint8_t match;		/* enum lttng_kernel_syscall_match */
-+	uint8_t padding;
-+	uint32_t nr;		/* For LTTNG_SYSCALL_MATCH_NR */
-+} __attribute__((packed));
-+
- /*
-  * For syscall tracing, name = "*" means "enable all".
-  */
-@@ -106,6 +131,7 @@ struct lttng_kernel_event {
- 		struct lttng_kernel_kprobe kprobe;
- 		struct lttng_kernel_function_tracer ftrace;
- 		struct lttng_kernel_uprobe uprobe;
-+		struct lttng_kernel_syscall syscall;
- 		char padding[LTTNG_KERNEL_EVENT_PADDING2];
- 	} u;
- } __attribute__((packed));
-diff --git a/lttng-events.c b/lttng-events.c
-index be7e389..4c0b04a 100644
---- a/lttng-events.c
-+++ b/lttng-events.c
-@@ -201,6 +201,10 @@ void lttng_session_destroy(struct lttng_session *session)
- 		WARN_ON(ret);
- 	}
- 	synchronize_trace();	/* Wait for in-flight events to complete */
-+	list_for_each_entry(chan, &session->chan, list) {
-+		ret = lttng_syscalls_destroy(chan);
-+		WARN_ON(ret);
-+	}
- 	list_for_each_entry_safe(enabler, tmpenabler,
- 			&session->enablers_head, node)
- 		lttng_enabler_destroy(enabler);
-@@ -740,6 +744,28 @@ struct lttng_event *_lttng_event_create(struct lttng_channel *chan,
- 		event->enabled = 0;
- 		event->registered = 0;
- 		event->desc = event_desc;
-+		switch (event_param->u.syscall.entryexit) {
-+		case LTTNG_KERNEL_SYSCALL_ENTRYEXIT:
-+			ret = -EINVAL;
-+			goto register_error;
-+		case LTTNG_KERNEL_SYSCALL_ENTRY:
-+			event->u.syscall.entryexit = LTTNG_SYSCALL_ENTRY;
-+			break;
-+		case LTTNG_KERNEL_SYSCALL_EXIT:
-+			event->u.syscall.entryexit = LTTNG_SYSCALL_EXIT;
-+			break;
-+		}
-+		switch (event_param->u.syscall.abi) {
-+		case LTTNG_KERNEL_SYSCALL_ABI_ALL:
-+			ret = -EINVAL;
-+			goto register_error;
-+		case LTTNG_KERNEL_SYSCALL_ABI_NATIVE:
-+			event->u.syscall.abi = LTTNG_SYSCALL_ABI_NATIVE;
-+			break;
-+		case LTTNG_KERNEL_SYSCALL_ABI_COMPAT:
-+			event->u.syscall.abi = LTTNG_SYSCALL_ABI_COMPAT;
-+			break;
-+		}
- 		if (!event->desc) {
- 			ret = -EINVAL;
- 			goto register_error;
-@@ -826,8 +852,7 @@ void register_event(struct lttng_event *event)
- 						  event);
- 		break;
- 	case LTTNG_KERNEL_SYSCALL:
--		ret = lttng_syscall_filter_enable(event->chan,
--			desc->name);
-+		ret = lttng_syscall_filter_enable(event->chan, event);
- 		break;
- 	case LTTNG_KERNEL_KPROBE:
- 	case LTTNG_KERNEL_UPROBE:
-@@ -870,8 +895,7 @@ int _lttng_event_unregister(struct lttng_event *event)
- 		ret = 0;
- 		break;
- 	case LTTNG_KERNEL_SYSCALL:
--		ret = lttng_syscall_filter_disable(event->chan,
--			desc->name);
-+		ret = lttng_syscall_filter_disable(event->chan, event);
- 		break;
- 	case LTTNG_KERNEL_NOOP:
- 		ret = 0;
-@@ -1203,39 +1227,87 @@ int lttng_desc_match_enabler(const struct lttng_event_desc *desc,
- 		struct lttng_enabler *enabler)
- {
- 	const char *desc_name, *enabler_name;
-+	bool compat = false, entry = false;
- 
- 	enabler_name = enabler->event_param.name;
- 	switch (enabler->event_param.instrumentation) {
- 	case LTTNG_KERNEL_TRACEPOINT:
- 		desc_name = desc->name;
-+		switch (enabler->type) {
-+		case LTTNG_ENABLER_STAR_GLOB:
-+			return lttng_match_enabler_star_glob(desc_name, enabler_name);
-+		case LTTNG_ENABLER_NAME:
-+			return lttng_match_enabler_name(desc_name, enabler_name);
-+		default:
-+			return -EINVAL;
-+		}
- 		break;
- 	case LTTNG_KERNEL_SYSCALL:
- 		desc_name = desc->name;
--		if (!strncmp(desc_name, "compat_", strlen("compat_")))
-+		if (!strncmp(desc_name, "compat_", strlen("compat_"))) {
- 			desc_name += strlen("compat_");
-+			compat = true;
-+		}
- 		if (!strncmp(desc_name, "syscall_exit_",
- 				strlen("syscall_exit_"))) {
- 			desc_name += strlen("syscall_exit_");
- 		} else if (!strncmp(desc_name, "syscall_entry_",
- 				strlen("syscall_entry_"))) {
- 			desc_name += strlen("syscall_entry_");
-+			entry = true;
- 		} else {
- 			WARN_ON_ONCE(1);
- 			return -EINVAL;
- 		}
-+		switch (enabler->event_param.u.syscall.entryexit) {
-+		case LTTNG_KERNEL_SYSCALL_ENTRYEXIT:
-+			break;
-+		case LTTNG_KERNEL_SYSCALL_ENTRY:
-+			if (!entry)
-+				return 0;
-+			break;
-+		case LTTNG_KERNEL_SYSCALL_EXIT:
-+			if (entry)
-+				return 0;
-+			break;
-+		default:
-+			return -EINVAL;
-+		}
-+		switch (enabler->event_param.u.syscall.abi) {
-+		case LTTNG_KERNEL_SYSCALL_ABI_ALL:
-+			break;
-+		case LTTNG_KERNEL_SYSCALL_ABI_NATIVE:
-+			if (compat)
-+				return 0;
-+			break;
-+		case LTTNG_KERNEL_SYSCALL_ABI_COMPAT:
-+			if (!compat)
-+				return 0;
-+			break;
-+		default:
-+			return -EINVAL;
-+		}
-+		switch (enabler->event_param.u.syscall.match) {
-+		case LTTNG_SYSCALL_MATCH_NAME:
-+			switch (enabler->type) {
-+			case LTTNG_ENABLER_STAR_GLOB:
-+				return lttng_match_enabler_star_glob(desc_name, enabler_name);
-+			case LTTNG_ENABLER_NAME:
-+				return lttng_match_enabler_name(desc_name, enabler_name);
-+			default:
-+				return -EINVAL;
-+			}
-+			break;
-+		case LTTNG_SYSCALL_MATCH_NR:
-+			return -EINVAL;	/* Not implemented. */
-+		default:
-+			return -EINVAL;
-+		}
- 		break;
- 	default:
- 		WARN_ON_ONCE(1);
- 		return -EINVAL;
- 	}
--	switch (enabler->type) {
--	case LTTNG_ENABLER_STAR_GLOB:
--		return lttng_match_enabler_star_glob(desc_name, enabler_name);
--	case LTTNG_ENABLER_NAME:
--		return lttng_match_enabler_name(desc_name, enabler_name);
--	default:
--		return -EINVAL;
--	}
- }
- 
- static
-@@ -1361,9 +1433,21 @@ void lttng_create_event_if_missing(struct lttng_enabler *enabler)
- static
- int lttng_enabler_ref_events(struct lttng_enabler *enabler)
- {
--	struct lttng_session *session = enabler->chan->session;
-+	struct lttng_channel *chan = enabler->chan;
-+	struct lttng_session *session = chan->session;
- 	struct lttng_event *event;
- 
-+	if (enabler->event_param.instrumentation == LTTNG_KERNEL_SYSCALL &&
-+			enabler->event_param.u.syscall.entryexit == LTTNG_KERNEL_SYSCALL_ENTRYEXIT &&
-+			enabler->event_param.u.syscall.abi == LTTNG_KERNEL_SYSCALL_ABI_ALL &&
-+			enabler->event_param.u.syscall.match == LTTNG_SYSCALL_MATCH_NAME &&
-+			!strcmp(enabler->event_param.name, "*")) {
-+		if (enabler->enabled)
-+			WRITE_ONCE(chan->syscall_all, 1);
-+		else
-+			WRITE_ONCE(chan->syscall_all, 0);
-+	}
-+
- 	/* First ensure that probe events are created for this enabler. */
- 	lttng_create_event_if_missing(enabler);
- 
-@@ -1719,7 +1803,7 @@ int lttng_metadata_printf(struct lttng_session *session,
- 	size_t len;
- 	va_list ap;
- 
--	WARN_ON_ONCE(!READ_ONCE(session->active));
-+	WARN_ON_ONCE(!LTTNG_READ_ONCE(session->active));
- 
- 	va_start(ap, fmt);
- 	str = kvasprintf(GFP_KERNEL, fmt, ap);
-@@ -2305,7 +2389,7 @@ int _lttng_event_metadata_statedump(struct lttng_session *session,
- {
- 	int ret = 0;
- 
--	if (event->metadata_dumped || !READ_ONCE(session->active))
-+	if (event->metadata_dumped || !LTTNG_READ_ONCE(session->active))
- 		return 0;
- 	if (chan->channel_type == METADATA_CHANNEL)
- 		return 0;
-@@ -2377,7 +2461,7 @@ int _lttng_channel_metadata_statedump(struct lttng_session *session,
- {
- 	int ret = 0;
- 
--	if (chan->metadata_dumped || !READ_ONCE(session->active))
-+	if (chan->metadata_dumped || !LTTNG_READ_ONCE(session->active))
- 		return 0;
- 
- 	if (chan->channel_type == METADATA_CHANNEL)
-@@ -2604,7 +2688,7 @@ int _lttng_session_metadata_statedump(struct lttng_session *session)
- 	struct lttng_event *event;
- 	int ret = 0;
- 
--	if (!READ_ONCE(session->active))
-+	if (!LTTNG_READ_ONCE(session->active))
- 		return 0;
- 
- 	lttng_metadata_begin(session);
+ /* This part must be outside protection */
 diff --git a/lttng-events.h b/lttng-events.h
-index a36a312..d4d9976 100644
+index d4d99766..e47c1478 100644
 --- a/lttng-events.h
 +++ b/lttng-events.h
-@@ -292,6 +292,16 @@ struct lttng_uprobe_handler {
- 	struct list_head node;
- };
+@@ -16,6 +16,7 @@
+ #include <linux/kref.h>
+ #include <lttng-cpuhotplug.h>
+ #include <linux/uuid.h>
++#include <linux/irq_work.h>
+ #include <wrapper/uprobes.h>
+ #include <lttng-tracer.h>
+ #include <lttng-abi.h>
+diff --git a/lttng-filter-interpreter.c b/lttng-filter-interpreter.c
+index 21169f01..5d572437 100644
+--- a/lttng-filter-interpreter.c
++++ b/lttng-filter-interpreter.c
+@@ -8,7 +8,7 @@
+  */
  
-+enum lttng_syscall_entryexit {
-+	LTTNG_SYSCALL_ENTRY,
-+	LTTNG_SYSCALL_EXIT,
-+};
+ #include <wrapper/uaccess.h>
+-#include <wrapper/frame.h>
++#include <wrapper/objtool.h>
+ #include <wrapper/types.h>
+ #include <linux/swab.h>
+ 
+diff --git a/lttng-statedump-impl.c b/lttng-statedump-impl.c
+index a6fa71a5..cf803a73 100644
+--- a/lttng-statedump-impl.c
++++ b/lttng-statedump-impl.c
+@@ -55,26 +55,94 @@
+ #define LTTNG_INSTRUMENTATION
+ #include <instrumentation/events/lttng-module/lttng-statedump.h>
+ 
+-DEFINE_TRACE(lttng_statedump_block_device);
+-DEFINE_TRACE(lttng_statedump_end);
+-DEFINE_TRACE(lttng_statedump_interrupt);
+-DEFINE_TRACE(lttng_statedump_file_descriptor);
+-DEFINE_TRACE(lttng_statedump_start);
+-DEFINE_TRACE(lttng_statedump_process_state);
+-DEFINE_TRACE(lttng_statedump_process_pid_ns);
++LTTNG_DEFINE_TRACE(lttng_statedump_block_device,
++	TP_PROTO(struct lttng_session *session,
++		dev_t dev, const char *diskname),
++	TP_ARGS(session, dev, diskname));
 +
-+enum lttng_syscall_abi {
-+	LTTNG_SYSCALL_ABI_NATIVE,
-+	LTTNG_SYSCALL_ABI_COMPAT,
-+};
++LTTNG_DEFINE_TRACE(lttng_statedump_end,
++	TP_PROTO(struct lttng_session *session),
++	TP_ARGS(session));
 +
- /*
-  * lttng_event structure is referred to by the tracing fast path. It must be
-  * kept small.
-@@ -318,6 +328,11 @@ struct lttng_event {
- 			struct inode *inode;
- 			struct list_head head;
- 		} uprobe;
-+		struct {
-+			char *syscall_name;
-+			enum lttng_syscall_entryexit entryexit;
-+			enum lttng_syscall_abi abi;
-+		} syscall;
- 	} u;
- 	struct list_head list;		/* Event list in session */
- 	unsigned int metadata_dumped:1;
-@@ -457,10 +472,10 @@ struct lttng_channel {
- 	struct lttng_syscall_filter *sc_filter;
- 	int header_type;		/* 0: unset, 1: compact, 2: large */
- 	enum channel_type channel_type;
-+	int syscall_all;
- 	unsigned int metadata_dumped:1,
- 		sys_enter_registered:1,
- 		sys_exit_registered:1,
--		syscall_all:1,
- 		tstate:1;		/* Transient enable state */
- };
- 
-@@ -653,10 +668,11 @@ void lttng_clock_unref(void);
- #if defined(CONFIG_HAVE_SYSCALL_TRACEPOINTS)
- int lttng_syscalls_register(struct lttng_channel *chan, void *filter);
- int lttng_syscalls_unregister(struct lttng_channel *chan);
-+int lttng_syscalls_destroy(struct lttng_channel *chan);
- int lttng_syscall_filter_enable(struct lttng_channel *chan,
--		const char *name);
-+		struct lttng_event *event);
- int lttng_syscall_filter_disable(struct lttng_channel *chan,
--		const char *name);
-+		struct lttng_event *event);
- long lttng_channel_syscall_mask(struct lttng_channel *channel,
- 		struct lttng_kernel_syscall_mask __user *usyscall_mask);
- #else
-@@ -670,14 +686,19 @@ static inline int lttng_syscalls_unregister(struct lttng_channel *chan)
- 	return 0;
- }
- 
-+static inline int lttng_syscalls_destroy(struct lttng_channel *chan)
-+{
-+	return 0;
-+}
++LTTNG_DEFINE_TRACE(lttng_statedump_interrupt,
++	TP_PROTO(struct lttng_session *session,
++		unsigned int irq, const char *chip_name,
++		struct irqaction *action),
++	TP_ARGS(session, irq, chip_name, action));
 +
- static inline int lttng_syscall_filter_enable(struct lttng_channel *chan,
--		const char *name)
-+		struct lttng_event *event);
- {
- 	return -ENOSYS;
- }
++LTTNG_DEFINE_TRACE(lttng_statedump_file_descriptor,
++	TP_PROTO(struct lttng_session *session,
++		struct files_struct *files,
++		int fd, const char *filename,
++		unsigned int flags, fmode_t fmode),
++	TP_ARGS(session, files, fd, filename, flags, fmode));
++
++LTTNG_DEFINE_TRACE(lttng_statedump_start,
++	TP_PROTO(struct lttng_session *session),
++	TP_ARGS(session));
++
++LTTNG_DEFINE_TRACE(lttng_statedump_process_state,
++	TP_PROTO(struct lttng_session *session,
++		struct task_struct *p,
++		int type, int mode, int submode, int status,
++		struct files_struct *files),
++	TP_ARGS(session, p, type, mode, submode, status, files));
++
++LTTNG_DEFINE_TRACE(lttng_statedump_process_pid_ns,
++	TP_PROTO(struct lttng_session *session,
++		struct task_struct *p,
++		struct pid_namespace *pid_ns),
++	TP_ARGS(session, p, pid_ns));
++
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,6,0))
+-DEFINE_TRACE(lttng_statedump_process_cgroup_ns);
++LTTNG_DEFINE_TRACE(lttng_statedump_process_cgroup_ns,
++	TP_PROTO(struct lttng_session *session,
++		struct task_struct *p,
++		struct cgroup_namespace *cgroup_ns),
++	TP_ARGS(session, p, cgroup_ns));
+ #endif
+-DEFINE_TRACE(lttng_statedump_process_ipc_ns);
++
++LTTNG_DEFINE_TRACE(lttng_statedump_process_ipc_ns,
++	TP_PROTO(struct lttng_session *session,
++		struct task_struct *p,
++		struct ipc_namespace *ipc_ns),
++	TP_ARGS(session, p, ipc_ns));
++
+ #ifndef LTTNG_MNT_NS_MISSING_HEADER
+-DEFINE_TRACE(lttng_statedump_process_mnt_ns);
++LTTNG_DEFINE_TRACE(lttng_statedump_process_mnt_ns,
++	TP_PROTO(struct lttng_session *session,
++		struct task_struct *p,
++		struct mnt_namespace *mnt_ns),
++	TP_ARGS(session, p, mnt_ns));
+ #endif
+-DEFINE_TRACE(lttng_statedump_process_net_ns);
+-DEFINE_TRACE(lttng_statedump_process_user_ns);
+-DEFINE_TRACE(lttng_statedump_process_uts_ns);
+-DEFINE_TRACE(lttng_statedump_network_interface);
++
++LTTNG_DEFINE_TRACE(lttng_statedump_process_net_ns,
++	TP_PROTO(struct lttng_session *session,
++		struct task_struct *p,
++		struct net *net_ns),
++	TP_ARGS(session, p, net_ns));
++
++LTTNG_DEFINE_TRACE(lttng_statedump_process_user_ns,
++	TP_PROTO(struct lttng_session *session,
++		struct task_struct *p,
++		struct user_namespace *user_ns),
++	TP_ARGS(session, p, user_ns));
++
++LTTNG_DEFINE_TRACE(lttng_statedump_process_uts_ns,
++	TP_PROTO(struct lttng_session *session,
++		struct task_struct *p,
++		struct uts_namespace *uts_ns),
++	TP_ARGS(session, p, uts_ns));
++
++LTTNG_DEFINE_TRACE(lttng_statedump_network_interface,
++	TP_PROTO(struct lttng_session *session,
++		struct net_device *dev, struct in_ifaddr *ifa),
++	TP_ARGS(session, dev, ifa));
++
+ #ifdef LTTNG_HAVE_STATEDUMP_CPU_TOPOLOGY
+-DEFINE_TRACE(lttng_statedump_cpu_topology);
++LTTNG_DEFINE_TRACE(lttng_statedump_cpu_topology,
++	TP_PROTO(struct lttng_session *session, struct cpuinfo_x86 *c),
++	TP_ARGS(session, c));
+ #endif
  
- static inline int lttng_syscall_filter_disable(struct lttng_channel *chan,
--		const char *name)
-+		struct lttng_event *event);
- {
- 	return -ENOSYS;
- }
+ struct lttng_fd_ctx {
 diff --git a/lttng-syscalls.c b/lttng-syscalls.c
-index 97f1ba9..26cead6 100644
+index 49c0d81b..b43dd570 100644
 --- a/lttng-syscalls.c
 +++ b/lttng-syscalls.c
-@@ -367,8 +367,10 @@ const struct trace_syscall_entry compat_sc_exit_table[] = {
- #undef CREATE_SYSCALL_TABLE
- 
- struct lttng_syscall_filter {
--	DECLARE_BITMAP(sc, NR_syscalls);
--	DECLARE_BITMAP(sc_compat, NR_compat_syscalls);
-+	DECLARE_BITMAP(sc_entry, NR_syscalls);
-+	DECLARE_BITMAP(sc_exit, NR_syscalls);
-+	DECLARE_BITMAP(sc_compat_entry, NR_compat_syscalls);
-+	DECLARE_BITMAP(sc_compat_exit, NR_compat_syscalls);
- };
- 
- static void syscall_entry_unknown(struct lttng_event *event,
-@@ -391,29 +393,23 @@ void syscall_entry_probe(void *__data, struct pt_regs *regs, long id)
- 	size_t table_len;
- 
- 	if (unlikely(in_compat_syscall())) {
--		struct lttng_syscall_filter *filter;
--
--		filter = lttng_rcu_dereference(chan->sc_filter);
--		if (filter) {
--			if (id < 0 || id >= NR_compat_syscalls
--				|| !test_bit(id, filter->sc_compat)) {
--				/* System call filtered out. */
--				return;
--			}
-+		struct lttng_syscall_filter *filter = chan->sc_filter;
-+
-+		if (id < 0 || id >= NR_compat_syscalls
-+			|| (!READ_ONCE(chan->syscall_all) && !test_bit(id, filter->sc_compat_entry))) {
-+			/* System call filtered out. */
-+			return;
- 		}
- 		table = compat_sc_table;
- 		table_len = ARRAY_SIZE(compat_sc_table);
- 		unknown_event = chan->sc_compat_unknown;
- 	} else {
--		struct lttng_syscall_filter *filter;
--
--		filter = lttng_rcu_dereference(chan->sc_filter);
--		if (filter) {
--			if (id < 0 || id >= NR_syscalls
--				|| !test_bit(id, filter->sc)) {
--				/* System call filtered out. */
--				return;
--			}
-+		struct lttng_syscall_filter *filter = chan->sc_filter;
-+
-+		if (id < 0 || id >= NR_syscalls
-+			|| (!READ_ONCE(chan->syscall_all) && !test_bit(id, filter->sc_entry))) {
-+			/* System call filtered out. */
-+			return;
- 		}
- 		table = sc_table;
- 		table_len = ARRAY_SIZE(sc_table);
-@@ -545,29 +541,23 @@ void syscall_exit_probe(void *__data, struct pt_regs *regs, long ret)
- 
- 	id = syscall_get_nr(current, regs);
- 	if (unlikely(in_compat_syscall())) {
--		struct lttng_syscall_filter *filter;
--
--		filter = lttng_rcu_dereference(chan->sc_filter);
--		if (filter) {
--			if (id < 0 || id >= NR_compat_syscalls
--				|| !test_bit(id, filter->sc_compat)) {
--				/* System call filtered out. */
--				return;
--			}
-+		struct lttng_syscall_filter *filter = chan->sc_filter;
-+
-+		if (id < 0 || id >= NR_compat_syscalls
-+			|| (!READ_ONCE(chan->syscall_all) && !test_bit(id, filter->sc_compat_exit))) {
-+			/* System call filtered out. */
-+			return;
- 		}
- 		table = compat_sc_exit_table;
- 		table_len = ARRAY_SIZE(compat_sc_exit_table);
- 		unknown_event = chan->compat_sc_exit_unknown;
- 	} else {
--		struct lttng_syscall_filter *filter;
--
--		filter = lttng_rcu_dereference(chan->sc_filter);
--		if (filter) {
--			if (id < 0 || id >= NR_syscalls
--				|| !test_bit(id, filter->sc)) {
--				/* System call filtered out. */
--				return;
--			}
-+		struct lttng_syscall_filter *filter = chan->sc_filter;
-+
-+		if (id < 0 || id >= NR_syscalls
-+			|| (!READ_ONCE(chan->syscall_all) && !test_bit(id, filter->sc_exit))) {
-+			/* System call filtered out. */
-+			return;
- 		}
- 		table = sc_exit_table;
- 		table_len = ARRAY_SIZE(sc_exit_table);
-@@ -713,27 +703,23 @@ int fill_table(const struct trace_syscall_entry *table, size_t table_len,
- 		memset(&ev, 0, sizeof(ev));
- 		switch (type) {
- 		case SC_TYPE_ENTRY:
--			strncpy(ev.name, SYSCALL_ENTRY_STR,
--				LTTNG_KERNEL_SYM_NAME_LEN);
-+			ev.u.syscall.entryexit = LTTNG_KERNEL_SYSCALL_ENTRY;
-+			ev.u.syscall.abi = LTTNG_KERNEL_SYSCALL_ABI_NATIVE;
- 			break;
- 		case SC_TYPE_EXIT:
--			strncpy(ev.name, SYSCALL_EXIT_STR,
--				LTTNG_KERNEL_SYM_NAME_LEN);
-+			ev.u.syscall.entryexit = LTTNG_KERNEL_SYSCALL_EXIT;
-+			ev.u.syscall.abi = LTTNG_KERNEL_SYSCALL_ABI_NATIVE;
- 			break;
- 		case SC_TYPE_COMPAT_ENTRY:
--			strncpy(ev.name, COMPAT_SYSCALL_ENTRY_STR,
--				LTTNG_KERNEL_SYM_NAME_LEN);
-+			ev.u.syscall.entryexit = LTTNG_KERNEL_SYSCALL_ENTRY;
-+			ev.u.syscall.abi = LTTNG_KERNEL_SYSCALL_ABI_COMPAT;
- 			break;
- 		case SC_TYPE_COMPAT_EXIT:
--			strncpy(ev.name, COMPAT_SYSCALL_EXIT_STR,
--				LTTNG_KERNEL_SYM_NAME_LEN);
--			break;
--		default:
--			BUG_ON(1);
-+			ev.u.syscall.entryexit = LTTNG_KERNEL_SYSCALL_EXIT;
-+			ev.u.syscall.abi = LTTNG_KERNEL_SYSCALL_ABI_COMPAT;
+@@ -719,7 +719,7 @@ int fill_table(const struct trace_syscall_entry *table, size_t table_len,
+ 			ev.u.syscall.abi = LTTNG_KERNEL_SYSCALL_ABI_COMPAT;
  			break;
  		}
--		strncat(ev.name, desc->name,
--			LTTNG_KERNEL_SYM_NAME_LEN - strlen(ev.name) - 1);
-+		strncpy(ev.name, desc->name, LTTNG_KERNEL_SYM_NAME_LEN);
+-		strncpy(ev.name, desc->name, LTTNG_KERNEL_SYM_NAME_LEN);
++		strncpy(ev.name, desc->name, LTTNG_KERNEL_SYM_NAME_LEN - 1);
  		ev.name[LTTNG_KERNEL_SYM_NAME_LEN - 1] = '\0';
  		ev.instrumentation = LTTNG_KERNEL_SYSCALL;
  		chan_table[i] = _lttng_event_create(chan, &ev, filter,
-@@ -803,6 +789,8 @@ int lttng_syscalls_register(struct lttng_channel *chan, void *filter)
- 		strncpy(ev.name, desc->name, LTTNG_KERNEL_SYM_NAME_LEN);
- 		ev.name[LTTNG_KERNEL_SYM_NAME_LEN - 1] = '\0';
- 		ev.instrumentation = LTTNG_KERNEL_SYSCALL;
-+		ev.u.syscall.entryexit = LTTNG_KERNEL_SYSCALL_ENTRY;
-+		ev.u.syscall.abi = LTTNG_KERNEL_SYSCALL_ABI_NATIVE;
- 		chan->sc_unknown = _lttng_event_create(chan, &ev, filter,
- 						desc,
- 						ev.instrumentation);
-@@ -820,6 +808,8 @@ int lttng_syscalls_register(struct lttng_channel *chan, void *filter)
- 		strncpy(ev.name, desc->name, LTTNG_KERNEL_SYM_NAME_LEN);
- 		ev.name[LTTNG_KERNEL_SYM_NAME_LEN - 1] = '\0';
- 		ev.instrumentation = LTTNG_KERNEL_SYSCALL;
-+		ev.u.syscall.entryexit = LTTNG_KERNEL_SYSCALL_ENTRY;
-+		ev.u.syscall.abi = LTTNG_KERNEL_SYSCALL_ABI_COMPAT;
- 		chan->sc_compat_unknown = _lttng_event_create(chan, &ev, filter,
- 						desc,
- 						ev.instrumentation);
-@@ -837,6 +827,8 @@ int lttng_syscalls_register(struct lttng_channel *chan, void *filter)
- 		strncpy(ev.name, desc->name, LTTNG_KERNEL_SYM_NAME_LEN);
- 		ev.name[LTTNG_KERNEL_SYM_NAME_LEN - 1] = '\0';
- 		ev.instrumentation = LTTNG_KERNEL_SYSCALL;
-+		ev.u.syscall.entryexit = LTTNG_KERNEL_SYSCALL_EXIT;
-+		ev.u.syscall.abi = LTTNG_KERNEL_SYSCALL_ABI_COMPAT;
- 		chan->compat_sc_exit_unknown = _lttng_event_create(chan, &ev,
- 						filter, desc,
- 						ev.instrumentation);
-@@ -854,6 +846,8 @@ int lttng_syscalls_register(struct lttng_channel *chan, void *filter)
- 		strncpy(ev.name, desc->name, LTTNG_KERNEL_SYM_NAME_LEN);
- 		ev.name[LTTNG_KERNEL_SYM_NAME_LEN - 1] = '\0';
- 		ev.instrumentation = LTTNG_KERNEL_SYSCALL;
-+		ev.u.syscall.entryexit = LTTNG_KERNEL_SYSCALL_EXIT;
-+		ev.u.syscall.abi = LTTNG_KERNEL_SYSCALL_ABI_NATIVE;
- 		chan->sc_exit_unknown = _lttng_event_create(chan, &ev, filter,
- 						desc, ev.instrumentation);
- 		WARN_ON_ONCE(!chan->sc_exit_unknown);
-@@ -883,6 +877,14 @@ int lttng_syscalls_register(struct lttng_channel *chan, void *filter)
- 	if (ret)
- 		return ret;
- #endif
-+
-+	if (!chan->sc_filter) {
-+		chan->sc_filter = kzalloc(sizeof(struct lttng_syscall_filter),
-+				GFP_KERNEL);
-+		if (!chan->sc_filter)
-+			return -ENOMEM;
+diff --git a/lttng-tracker-id.c b/lttng-tracker-id.c
+index 9a4b98b2..327ae346 100644
+--- a/lttng-tracker-id.c
++++ b/lttng-tracker-id.c
+@@ -75,6 +75,7 @@ int lttng_id_tracker_add(struct lttng_id_tracker *lf, int id)
+ 	struct lttng_id_tracker_rcu *p = lf->p;
+ 	uint32_t hash = hash_32(id, 32);
+ 	bool allocated = false;
++	int ret;
+ 
+ 	if (!p) {
+ 		p = lttng_id_tracker_rcu_create();
+@@ -84,18 +85,28 @@ int lttng_id_tracker_add(struct lttng_id_tracker *lf, int id)
+ 	}
+ 	head = &p->id_hash[hash & (LTTNG_ID_TABLE_SIZE - 1)];
+ 	lttng_hlist_for_each_entry(e, head, hlist) {
+-		if (id == e->id)
+-			return -EEXIST;
++		if (id == e->id) {
++			ret = -EEXIST;
++			goto error;
++		}
+ 	}
+ 	e = kmalloc(sizeof(struct lttng_id_hash_node), GFP_KERNEL);
+-	if (!e)
+-		return -ENOMEM;
++	if (!e) {
++		ret = -ENOMEM;
++		goto error;
 +	}
-+
- 	if (!chan->sys_enter_registered) {
- 		ret = lttng_wrapper_tracepoint_probe_register("sys_enter",
- 				(void *) syscall_entry_probe, chan);
-@@ -930,7 +932,11 @@ int lttng_syscalls_unregister(struct lttng_channel *chan)
- 			return ret;
- 		chan->sys_exit_registered = 0;
+ 	e->id = id;
+ 	hlist_add_head_rcu(&e->hlist, head);
+ 	if (allocated) {
+ 		rcu_assign_pointer(lf->p, p);
  	}
--	/* lttng_event destroy will be performed by lttng_session_destroy() */
-+	return 0;
-+}
-+
-+int lttng_syscalls_destroy(struct lttng_channel *chan)
-+{
- 	kfree(chan->sc_table);
- 	kfree(chan->sc_exit_table);
- #ifdef CONFIG_COMPAT
-@@ -993,136 +999,150 @@ uint32_t get_sc_tables_len(void)
- 	return ARRAY_SIZE(sc_table) + ARRAY_SIZE(compat_sc_table);
- }
- 
--int lttng_syscall_filter_enable(struct lttng_channel *chan,
--		const char *name)
-+static
-+const char *get_syscall_name(struct lttng_event *event)
- {
--	int syscall_nr, compat_syscall_nr, ret;
--	struct lttng_syscall_filter *filter;
-+	size_t prefix_len = 0;
- 
--	WARN_ON_ONCE(!chan->sc_table);
-+	WARN_ON_ONCE(event->instrumentation != LTTNG_KERNEL_SYSCALL);
- 
--	if (!name) {
--		/* Enable all system calls by removing filter */
--		if (chan->sc_filter) {
--			filter = chan->sc_filter;
--			rcu_assign_pointer(chan->sc_filter, NULL);
--			synchronize_trace();
--			kfree(filter);
-+	switch (event->u.syscall.entryexit) {
-+	case LTTNG_SYSCALL_ENTRY:
-+		switch (event->u.syscall.abi) {
-+		case LTTNG_SYSCALL_ABI_NATIVE:
-+			prefix_len = strlen(SYSCALL_ENTRY_STR);
-+			break;
-+		case LTTNG_SYSCALL_ABI_COMPAT:
-+			prefix_len = strlen(COMPAT_SYSCALL_ENTRY_STR);
-+			break;
- 		}
--		chan->syscall_all = 1;
--		return 0;
--	}
--
--	if (!chan->sc_filter) {
--		if (chan->syscall_all) {
--			/*
--			 * All syscalls are already enabled.
--			 */
--			return -EEXIST;
-+		break;
-+	case LTTNG_SYSCALL_EXIT:
-+		switch (event->u.syscall.abi) {
-+		case LTTNG_SYSCALL_ABI_NATIVE:
-+			prefix_len = strlen(SYSCALL_EXIT_STR);
-+			break;
-+		case LTTNG_SYSCALL_ABI_COMPAT:
-+			prefix_len = strlen(COMPAT_SYSCALL_EXIT_STR);
-+			break;
- 		}
--		filter = kzalloc(sizeof(struct lttng_syscall_filter),
--				GFP_KERNEL);
--		if (!filter)
--			return -ENOMEM;
--	} else {
--		filter = chan->sc_filter;
-+		break;
- 	}
--	syscall_nr = get_syscall_nr(name);
--	compat_syscall_nr = get_compat_syscall_nr(name);
--	if (syscall_nr < 0 && compat_syscall_nr < 0) {
--		ret = -ENOENT;
--		goto error;
-+	WARN_ON_ONCE(prefix_len == 0);
-+	return event->desc->name + prefix_len;
-+}
-+
-+int lttng_syscall_filter_enable(struct lttng_channel *chan,
-+		struct lttng_event *event)
-+{
-+	struct lttng_syscall_filter *filter = chan->sc_filter;
-+	const char *syscall_name;
-+	unsigned long *bitmap;
-+	int syscall_nr;
-+
-+	WARN_ON_ONCE(!chan->sc_table);
-+
-+	syscall_name = get_syscall_name(event);
-+
-+	switch (event->u.syscall.abi) {
-+	case LTTNG_SYSCALL_ABI_NATIVE:
-+		syscall_nr = get_syscall_nr(syscall_name);
-+		break;
-+	case LTTNG_SYSCALL_ABI_COMPAT:
-+		syscall_nr = get_compat_syscall_nr(syscall_name);
-+		break;
-+	default:
-+		return -EINVAL;
- 	}
--	if (syscall_nr >= 0) {
--		if (test_bit(syscall_nr, filter->sc)) {
--			ret = -EEXIST;
--			goto error;
-+	if (syscall_nr < 0)
-+		return -ENOENT;
-+
-+
-+	switch (event->u.syscall.entryexit) {
-+	case LTTNG_SYSCALL_ENTRY:
-+		switch (event->u.syscall.abi) {
-+		case LTTNG_SYSCALL_ABI_NATIVE:
-+			bitmap = filter->sc_entry;
-+			break;
-+		case LTTNG_SYSCALL_ABI_COMPAT:
-+			bitmap = filter->sc_compat_entry;
-+			break;
- 		}
--		bitmap_set(filter->sc, syscall_nr, 1);
--	}
--	if (compat_syscall_nr >= 0) {
--		if (test_bit(compat_syscall_nr, filter->sc_compat)) {
--			ret = -EEXIST;
--			goto error;
-+		break;
-+	case LTTNG_SYSCALL_EXIT:
-+		switch (event->u.syscall.abi) {
-+		case LTTNG_SYSCALL_ABI_NATIVE:
-+			bitmap = filter->sc_exit;
-+			break;
-+		case LTTNG_SYSCALL_ABI_COMPAT:
-+			bitmap = filter->sc_compat_exit;
-+			break;
- 		}
--		bitmap_set(filter->sc_compat, compat_syscall_nr, 1);
-+		break;
-+	default:
-+		return -EINVAL;
- 	}
--	if (!chan->sc_filter)
--		rcu_assign_pointer(chan->sc_filter, filter);
-+	if (test_bit(syscall_nr, bitmap))
-+		return -EEXIST;
-+	bitmap_set(bitmap, syscall_nr, 1);
  	return 0;
--
--error:
--	if (!chan->sc_filter)
--		kfree(filter);
--	return ret;
- }
- 
- int lttng_syscall_filter_disable(struct lttng_channel *chan,
--		const char *name)
-+		struct lttng_event *event)
- {
--	int syscall_nr, compat_syscall_nr, ret;
--	struct lttng_syscall_filter *filter;
-+	struct lttng_syscall_filter *filter = chan->sc_filter;
-+	const char *syscall_name;
-+	unsigned long *bitmap;
-+	int syscall_nr;
- 
- 	WARN_ON_ONCE(!chan->sc_table);
- 
--	if (!chan->sc_filter) {
--		if (!chan->syscall_all)
--			return -EEXIST;
--		filter = kzalloc(sizeof(struct lttng_syscall_filter),
--				GFP_KERNEL);
--		if (!filter)
--			return -ENOMEM;
--		/* Trace all system calls, then apply disable. */
--		bitmap_set(filter->sc, 0, NR_syscalls);
--		bitmap_set(filter->sc_compat, 0, NR_compat_syscalls);
--	} else {
--		filter = chan->sc_filter;
-+	syscall_name = get_syscall_name(event);
 +
-+	switch (event->u.syscall.abi) {
-+	case LTTNG_SYSCALL_ABI_NATIVE:
-+		syscall_nr = get_syscall_nr(syscall_name);
-+		break;
-+	case LTTNG_SYSCALL_ABI_COMPAT:
-+		syscall_nr = get_compat_syscall_nr(syscall_name);
-+		break;
-+	default:
-+		return -EINVAL;
- 	}
-+	if (syscall_nr < 0)
-+		return -ENOENT;
- 
--	if (!name) {
--		/* Fail if all syscalls are already disabled. */
--		if (bitmap_empty(filter->sc, NR_syscalls)
--			&& bitmap_empty(filter->sc_compat,
--				NR_compat_syscalls)) {
--			ret = -EEXIST;
--			goto error;
--		}
- 
--		/* Disable all system calls */
--		bitmap_clear(filter->sc, 0, NR_syscalls);
--		bitmap_clear(filter->sc_compat, 0, NR_compat_syscalls);
--		goto apply_filter;
--	}
--	syscall_nr = get_syscall_nr(name);
--	compat_syscall_nr = get_compat_syscall_nr(name);
--	if (syscall_nr < 0 && compat_syscall_nr < 0) {
--		ret = -ENOENT;
--		goto error;
--	}
--	if (syscall_nr >= 0) {
--		if (!test_bit(syscall_nr, filter->sc)) {
--			ret = -EEXIST;
--			goto error;
-+	switch (event->u.syscall.entryexit) {
-+	case LTTNG_SYSCALL_ENTRY:
-+		switch (event->u.syscall.abi) {
-+		case LTTNG_SYSCALL_ABI_NATIVE:
-+			bitmap = filter->sc_entry;
-+			break;
-+		case LTTNG_SYSCALL_ABI_COMPAT:
-+			bitmap = filter->sc_compat_entry;
-+			break;
- 		}
--		bitmap_clear(filter->sc, syscall_nr, 1);
--	}
--	if (compat_syscall_nr >= 0) {
--		if (!test_bit(compat_syscall_nr, filter->sc_compat)) {
--			ret = -EEXIST;
--			goto error;
-+		break;
-+	case LTTNG_SYSCALL_EXIT:
-+		switch (event->u.syscall.abi) {
-+		case LTTNG_SYSCALL_ABI_NATIVE:
-+			bitmap = filter->sc_exit;
-+			break;
-+		case LTTNG_SYSCALL_ABI_COMPAT:
-+			bitmap = filter->sc_compat_exit;
-+			break;
- 		}
--		bitmap_clear(filter->sc_compat, compat_syscall_nr, 1);
-+		break;
-+	default:
-+		return -EINVAL;
- 	}
--apply_filter:
--	if (!chan->sc_filter)
--		rcu_assign_pointer(chan->sc_filter, filter);
--	chan->syscall_all = 0;
--	return 0;
-+	if (!test_bit(syscall_nr, bitmap))
-+		return -EEXIST;
-+	bitmap_clear(bitmap, syscall_nr, 1);
- 
--error:
--	if (!chan->sc_filter)
--		kfree(filter);
--	return ret;
-+	return 0;
++error:
++	if (allocated) {
++		kfree(p);
++	}
++	return ret;
  }
  
  static
-@@ -1236,6 +1256,9 @@ const struct file_operations lttng_syscall_list_fops = {
- 	.release = seq_release,
- };
- 
-+/*
-+ * A syscall is enabled if it is traced for either entry or exit.
-+ */
- long lttng_channel_syscall_mask(struct lttng_channel *channel,
- 		struct lttng_kernel_syscall_mask __user *usyscall_mask)
- {
-@@ -1262,8 +1285,9 @@ long lttng_channel_syscall_mask(struct lttng_channel *channel,
- 		char state;
- 
- 		if (channel->sc_table) {
--			if (filter)
--				state = test_bit(bit, filter->sc);
-+			if (!READ_ONCE(channel->syscall_all) && filter)
-+				state = test_bit(bit, filter->sc_entry)
-+					|| test_bit(bit, filter->sc_exit);
- 			else
- 				state = 1;
- 		} else {
-@@ -1275,9 +1299,11 @@ long lttng_channel_syscall_mask(struct lttng_channel *channel,
- 		char state;
- 
- 		if (channel->compat_sc_table) {
--			if (filter)
-+			if (!READ_ONCE(channel->syscall_all) && filter)
- 				state = test_bit(bit - ARRAY_SIZE(sc_table),
--						filter->sc_compat);
-+						filter->sc_compat_entry)
-+					|| test_bit(bit - ARRAY_SIZE(sc_table),
-+						filter->sc_compat_exit);
- 			else
- 				state = 1;
- 		} else {
-diff --git a/probes/lttng-kprobes.c b/probes/lttng-kprobes.c
-index a44eaa1..38fb72e 100644
---- a/probes/lttng-kprobes.c
-+++ b/probes/lttng-kprobes.c
-@@ -31,11 +31,11 @@ int lttng_kprobes_handler_pre(struct kprobe *p, struct pt_regs *regs)
- 	int ret;
- 	unsigned long data = (unsigned long) p->addr;
- 
--	if (unlikely(!READ_ONCE(chan->session->active)))
-+	if (unlikely(!LTTNG_READ_ONCE(chan->session->active)))
- 		return 0;
--	if (unlikely(!READ_ONCE(chan->enabled)))
-+	if (unlikely(!LTTNG_READ_ONCE(chan->enabled)))
- 		return 0;
--	if (unlikely(!READ_ONCE(event->enabled)))
-+	if (unlikely(!LTTNG_READ_ONCE(event->enabled)))
- 		return 0;
- 
- 	lib_ring_buffer_ctx_init(&ctx, chan->chan, &lttng_probe_ctx, sizeof(data),
-diff --git a/probes/lttng-kretprobes.c b/probes/lttng-kretprobes.c
-index ab98ff2..a6bcd21 100644
---- a/probes/lttng-kretprobes.c
-+++ b/probes/lttng-kretprobes.c
-@@ -51,11 +51,11 @@ int _lttng_kretprobes_handler(struct kretprobe_instance *krpi,
- 		unsigned long parent_ip;
- 	} payload;
- 
--	if (unlikely(!READ_ONCE(chan->session->active)))
-+	if (unlikely(!LTTNG_READ_ONCE(chan->session->active)))
- 		return 0;
--	if (unlikely(!READ_ONCE(chan->enabled)))
-+	if (unlikely(!LTTNG_READ_ONCE(chan->enabled)))
- 		return 0;
--	if (unlikely(!READ_ONCE(event->enabled)))
-+	if (unlikely(!LTTNG_READ_ONCE(event->enabled)))
- 		return 0;
- 
- 	payload.ip = (unsigned long) krpi->rp->kp.addr;
 diff --git a/probes/lttng-probe-kvm-x86-mmu.c b/probes/lttng-probe-kvm-x86-mmu.c
-index 37384a2..8f98186 100644
+index 8f981865..5043c776 100644
 --- a/probes/lttng-probe-kvm-x86-mmu.c
 +++ b/probes/lttng-probe-kvm-x86-mmu.c
-@@ -24,7 +24,12 @@
-  */
- #include <wrapper/tracepoint.h>
- 
-+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,9,0))
-+#include <../../arch/x86/kvm/mmu/mmu_internal.h>
-+#include <../../arch/x86/kvm/mmu/mmutrace.h>
-+#else
+@@ -31,6 +31,11 @@
  #include <../../arch/x86/kvm/mmutrace.h>
-+#endif
- 
- #undef TRACE_INCLUDE_PATH
- #undef TRACE_INCLUDE_FILE
-diff --git a/probes/lttng-tracepoint-event-impl.h b/probes/lttng-tracepoint-event-impl.h
-index 77b8638..72a669e 100644
---- a/probes/lttng-tracepoint-event-impl.h
-+++ b/probes/lttng-tracepoint-event-impl.h
-@@ -1132,11 +1132,11 @@ static void __event_probe__##_name(void *__data, _proto)		      \
- 									      \
- 	if (!_TP_SESSION_CHECK(session, __session))			      \
- 		return;							      \
--	if (unlikely(!READ_ONCE(__session->active)))			      \
-+	if (unlikely(!LTTNG_READ_ONCE(__session->active)))		      \
- 		return;							      \
--	if (unlikely(!READ_ONCE(__chan->enabled)))			      \
-+	if (unlikely(!LTTNG_READ_ONCE(__chan->enabled)))		      \
- 		return;							      \
--	if (unlikely(!READ_ONCE(__event->enabled)))			      \
-+	if (unlikely(!LTTNG_READ_ONCE(__event->enabled)))		      \
- 		return;							      \
- 	__lf = lttng_rcu_dereference(__session->pid_tracker.p);		      \
- 	if (__lf && likely(!lttng_id_tracker_lookup(__lf, current->tgid)))    \
-@@ -1225,11 +1225,11 @@ static void __event_probe__##_name(void *__data)			      \
- 									      \
- 	if (!_TP_SESSION_CHECK(session, __session))			      \
- 		return;							      \
--	if (unlikely(!READ_ONCE(__session->active)))			      \
-+	if (unlikely(!LTTNG_READ_ONCE(__session->active)))		      \
- 		return;							      \
--	if (unlikely(!READ_ONCE(__chan->enabled)))			      \
-+	if (unlikely(!LTTNG_READ_ONCE(__chan->enabled)))		      \
- 		return;							      \
--	if (unlikely(!READ_ONCE(__event->enabled)))			      \
-+	if (unlikely(!LTTNG_READ_ONCE(__event->enabled)))		      \
- 		return;							      \
- 	__lf = lttng_rcu_dereference(__session->pid_tracker.p);		      \
- 	if (__lf && likely(!lttng_id_tracker_lookup(__lf, current->tgid)))    \
-diff --git a/probes/lttng-uprobes.c b/probes/lttng-uprobes.c
-index bc10128..bda1d9b 100644
---- a/probes/lttng-uprobes.c
-+++ b/probes/lttng-uprobes.c
-@@ -40,11 +40,11 @@ int lttng_uprobes_handler_pre(struct uprobe_consumer *uc, struct pt_regs *regs)
- 		unsigned long ip;
- 	} payload;
- 
--	if (unlikely(!READ_ONCE(chan->session->active)))
-+	if (unlikely(!LTTNG_READ_ONCE(chan->session->active)))
- 		return 0;
--	if (unlikely(!READ_ONCE(chan->enabled)))
-+	if (unlikely(!LTTNG_READ_ONCE(chan->enabled)))
- 		return 0;
--	if (unlikely(!READ_ONCE(event->enabled)))
-+	if (unlikely(!LTTNG_READ_ONCE(event->enabled)))
- 		return 0;
- 
- 	lib_ring_buffer_ctx_init(&ctx, chan->chan, &lttng_probe_ctx,
-diff --git a/wrapper/compiler.h b/wrapper/compiler.h
-index 1496f33..b9f8c51 100644
---- a/wrapper/compiler.h
-+++ b/wrapper/compiler.h
-@@ -9,6 +9,7 @@
- #define _LTTNG_WRAPPER_COMPILER_H
- 
- #include <linux/compiler.h>
-+#include <linux/version.h>
- 
- /*
-  * Don't allow compiling with buggy compiler.
-@@ -39,4 +40,21 @@
- # define WRITE_ONCE(x, val)	({ ACCESS_ONCE(x) = val; })
  #endif
  
-+/*
-+ * In v4.15 a smp read barrier was added to READ_ONCE to replace
-+ * lockless_dereference(), replicate this behavior on prior kernels
-+ * and remove calls to smp_read_barrier_depends which was dropped
-+ * in v5.9.
-+ */
-+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,15,0))
-+#define LTTNG_READ_ONCE(x)	READ_ONCE(x)
-+#else
-+#define LTTNG_READ_ONCE(x)			\
-+({						\
-+	typeof(x) __val = READ_ONCE(x);		\
-+	smp_read_barrier_depends();		\
-+	__val;					\
-+})
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,10,0))
++#include <../arch/x86/kvm/mmu.h>
++#include <../arch/x86/kvm/mmu/spte.h>
 +#endif
 +
- #endif /* _LTTNG_WRAPPER_COMPILER_H */
-diff --git a/wrapper/trace-clock.h b/wrapper/trace-clock.h
-index 9f4e366..187fc82 100644
---- a/wrapper/trace-clock.h
-+++ b/wrapper/trace-clock.h
-@@ -160,33 +160,30 @@ static inline void put_trace_clock(void)
+ #undef TRACE_INCLUDE_PATH
+ #undef TRACE_INCLUDE_FILE
  
- static inline u64 trace_clock_read64(void)
- {
--	struct lttng_trace_clock *ltc = READ_ONCE(lttng_trace_clock);
-+	struct lttng_trace_clock *ltc = LTTNG_READ_ONCE(lttng_trace_clock);
+diff --git a/probes/lttng.c b/probes/lttng.c
+index 05bc1388..7ddaa69f 100644
+--- a/probes/lttng.c
++++ b/probes/lttng.c
+@@ -8,7 +8,7 @@
+  */
  
- 	if (likely(!ltc)) {
- 		return trace_clock_read64_monotonic();
- 	} else {
--		read_barrier_depends();	/* load ltc before content */
- 		return ltc->read64();
- 	}
- }
+ #include <linux/module.h>
+-#include <linux/tracepoint.h>
++#include <wrapper/tracepoint.h>
+ #include <linux/uaccess.h>
+ #include <linux/gfp.h>
+ #include <linux/fs.h>
+@@ -32,7 +32,10 @@
+ #define LTTNG_LOGGER_COUNT_MAX	1024
+ #define LTTNG_LOGGER_FILE	"lttng-logger"
  
- static inline u64 trace_clock_freq(void)
- {
--	struct lttng_trace_clock *ltc = READ_ONCE(lttng_trace_clock);
-+	struct lttng_trace_clock *ltc = LTTNG_READ_ONCE(lttng_trace_clock);
+-DEFINE_TRACE(lttng_logger);
++LTTNG_DEFINE_TRACE(lttng_logger,
++	PARAMS(const char __user *text, size_t len),
++	PARAMS(text, len)
++);
  
- 	if (!ltc) {
- 		return trace_clock_freq_monotonic();
- 	} else {
--		read_barrier_depends();	/* load ltc before content */
- 		return ltc->freq();
- 	}
- }
+ static struct proc_dir_entry *lttng_logger_dentry;
  
- static inline int trace_clock_uuid(char *uuid)
- {
--	struct lttng_trace_clock *ltc = READ_ONCE(lttng_trace_clock);
-+	struct lttng_trace_clock *ltc = LTTNG_READ_ONCE(lttng_trace_clock);
+diff --git a/scripts/maintainer/do-release.sh b/scripts/maintainer/do-release.sh
+new file mode 100755
+index 00000000..5e94e136
+--- /dev/null
++++ b/scripts/maintainer/do-release.sh
+@@ -0,0 +1,110 @@
++#!/bin/bash
++
++set -eu
++set -o pipefail
++
++# invoke with do-release 2.N.M, or 2.N.M-rcXX
++
++# Default maintainer values
++SRCDIR="${HOME}/git/lttng-modules"
++# The output files are created in ${HOME}/stable/
++OUTPUTDIR="${HOME}/stable"
++SIGN="yes"
++VERBOSE=""
++
++usage() {
++	echo "Usage: do-release.sh [OPTION]... RELEASE"
++	echo
++	echo "Mandatory arguments to long options are mandatory for short options too."
++	echo "  -s, --srcdir DIR               source directory"
++	echo "  -o, --outputdir DIR            output directory, must exist"
++	echo "  -n, --no-sign                  don't GPG sign the output archive"
++	echo "  -v, --verbose                  verbose command output"
++}
++
++POS_ARGS=()
++while [[ $# -gt 0 ]]
++do
++	arg="$1"
++
++	case $arg in
++	-n|--no-sign)
++		SIGN="no"
++		shift 1
++	;;
++
++	-s|--srcdir)
++		SRCDIR="$2"
++		shift 2
++	;;
++
++	-o|--outputdir)
++		OUTPUTDIR="$2"
++		shift 2
++	;;
++
++	-v|--verbose)
++		VERBOSE="-v"
++		shift 1
++	;;
++
++	# Catch unknown arguments
++	-*)
++		usage
++		exit 1
++	;;
++
++	*)
++	POS_ARGS+=("$1")
++	shift
++	;;
++	esac
++done
++set -- "${POS_ARGS[@]}"
++
++REL=${1:-}
++
++if [ x"${REL}" = x"" ]; then
++	usage
++	exit 1;
++fi
++
++echo "Doing LTTng modules release ${REL}"
++echo "  Source dir: ${SRCDIR}"
++echo "  Output dir: ${OUTPUTDIR}"
++echo "  GPG sign: ${SIGN}"
++
++# Make sure the output directory exists
++if [ ! -d "${OUTPUTDIR}" ]; then
++	echo "Output directory '${OUTPUTDIR}' doesn't exist."
++	exit 1
++fi
++
++# Make sure the source directory is a git repository
++if [ ! -r "${SRCDIR}/.git/config" ]; then
++	echo "Source directory '${SRCDIR}' isn't a git repository."
++	exit 1
++fi
++
++# Set the git repo directory for all further git commands
++export GIT_DIR="${SRCDIR}/.git/"
++
++# Check if the release tag exists
++if ! git rev-parse "refs/tags/v${REL}" >/dev/null 2>&1; then
++	echo "Release tag 'v${REL}' doesn't exist."
++	exit 1
++fi
++
++# Generate the compressed tar archive, the git attributes from the tag will be used.
++git archive $VERBOSE --format=tar --prefix="lttng-modules-${REL}/" "v${REL}" | bzip2 > "${OUTPUTDIR}/lttng-modules-${REL}.tar.bz2"
++
++pushd "${OUTPUTDIR}" >/dev/null
++# Generate the hashes
++md5sum "lttng-modules-${REL}.tar.bz2" > "lttng-modules-${REL}.tar.bz2.md5"
++sha256sum "lttng-modules-${REL}.tar.bz2" > "lttng-modules-${REL}.tar.bz2.sha256"
++
++if [ "x${SIGN}" = "xyes" ]; then
++	# Sign with the default key
++	gpg --armor -b "lttng-modules-${REL}.tar.bz2"
++fi
++popd >/dev/null
+diff --git a/tests/probes/lttng-test.c b/tests/probes/lttng-test.c
+index b450e7d7..a4fa0645 100644
+--- a/tests/probes/lttng-test.c
++++ b/tests/probes/lttng-test.c
+@@ -25,7 +25,12 @@
+ #define LTTNG_INSTRUMENTATION
+ #include <instrumentation/events/lttng-module/lttng-test.h>
  
--	read_barrier_depends();	/* load ltc before content */
- 	/* Use default UUID cb when NULL */
- 	if (!ltc || !ltc->uuid) {
- 		return trace_clock_uuid_monotonic(uuid);
-@@ -197,24 +194,22 @@ static inline int trace_clock_uuid(char *uuid)
+-DEFINE_TRACE(lttng_test_filter_event);
++LTTNG_DEFINE_TRACE(lttng_test_filter_event,
++	PARAMS(int anint, int netint, long *values,
++		char *text, size_t textlen,
++		char *etext, uint32_t * net_values),
++	PARAMS(anint, netint, values, text, textlen, etext, net_values)
++);
  
- static inline const char *trace_clock_name(void)
- {
--	struct lttng_trace_clock *ltc = READ_ONCE(lttng_trace_clock);
-+	struct lttng_trace_clock *ltc = LTTNG_READ_ONCE(lttng_trace_clock);
+ #define LTTNG_TEST_FILTER_EVENT_FILE	"lttng-test-filter-event"
  
- 	if (!ltc) {
- 		return trace_clock_name_monotonic();
- 	} else {
--		read_barrier_depends();	/* load ltc before content */
- 		return ltc->name();
- 	}
- }
+diff --git a/wrapper/frame.h b/wrapper/objtool.h
+similarity index 50%
+rename from wrapper/frame.h
+rename to wrapper/objtool.h
+index 6e6dc811..3b997cae 100644
+--- a/wrapper/frame.h
++++ b/wrapper/objtool.h
+@@ -1,18 +1,23 @@
+-/* SPDX-License-Identifier: (GPL-2.0 or LGPL-2.1)
++/* SPDX-License-Identifier: (GPL-2.0-only or LGPL-2.1-only)
+  *
+- * wrapper/frame.h
++ * wrapper/objtool.h
+  *
+  * Copyright (C) 2016 Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+  */
  
- static inline const char *trace_clock_description(void)
- {
--	struct lttng_trace_clock *ltc = READ_ONCE(lttng_trace_clock);
-+	struct lttng_trace_clock *ltc = LTTNG_READ_ONCE(lttng_trace_clock);
+-#ifndef _LTTNG_WRAPPER_FRAME_H
+-#define _LTTNG_WRAPPER_FRAME_H
++#ifndef _LTTNG_WRAPPER_OBJTOOL_H
++#define _LTTNG_WRAPPER_OBJTOOL_H
  
- 	if (!ltc) {
- 		return trace_clock_description_monotonic();
- 	} else {
--		read_barrier_depends();	/* load ltc before content */
- 		return ltc->description();
- 	}
- }
+ #include <linux/version.h>
+ 
+-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,6,0))
+-
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,10,0))
++#include <linux/objtool.h>
++#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4,6,0))
+ #include <linux/frame.h>
++#endif
++
++
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,6,0))
+ 
+ #define LTTNG_STACK_FRAME_NON_STANDARD(func) \
+ 	STACK_FRAME_NON_STANDARD(func)
+@@ -23,4 +28,4 @@
+ 
+ #endif
+ 
+-#endif /* _LTTNG_WRAPPER_FRAME_H */
++#endif /* _LTTNG_WRAPPER_OBJTOOL_H */
+diff --git a/wrapper/tracepoint.h b/wrapper/tracepoint.h
+index c4ba0123..bc19d8c1 100644
+--- a/wrapper/tracepoint.h
++++ b/wrapper/tracepoint.h
+@@ -14,6 +14,14 @@
+ #include <linux/tracepoint.h>
+ #include <linux/module.h>
+ 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,10,0))
++#define LTTNG_DEFINE_TRACE(name, proto, args)		\
++	DEFINE_TRACE(name, PARAMS(proto), PARAMS(args))
++#else
++#define LTTNG_DEFINE_TRACE(name, proto, args)		\
++	DEFINE_TRACE(name)
++#endif
++
+ #ifndef HAVE_KABI_2635_TRACEPOINT
+ 
+ #define kabi_2635_tracepoint_probe_register tracepoint_probe_register
