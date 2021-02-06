@@ -25,5 +25,5 @@
 +#    endif
 +#  endif
  
-   include $(TOP_LTTNG_MODULES_DIR)/Makefile.ABI.workarounds
+   include $(TOP_LTTNG_MODULES_DIR)/Kbuild.common
  
