@@ -6,17 +6,18 @@
 # nothing to be placed to debuginfo package
 %define		_enable_debug_packages	0
 
+%define		pre	rc1
 %define		rel	1
 %define		pname	lttng-modules
 Summary:	LTTng 2.x kernel modules
 Summary(pl.UTF-8):	Moduły jądra LTTng 2.x
 Name:		%{pname}%{_alt_kernel}
-Version:	2.12.5
+Version:	2.13.0
 Release:	%{rel}@%{_kernel_ver_str}
 License:	GPL v2
 Group:		Base/Kernel
-Source0:	https://lttng.org/files/lttng-modules/%{pname}-%{version}.tar.bz2
-# Source0-md5:	675dceb2e097c972d6f86a73ba60cf70
+Source0:	https://lttng.org/files/lttng-modules/%{pname}-%{version}-%{pre}.tar.bz2
+# Source0-md5:	487c988fdb10146ca772baf908683980
 Patch0:		build.patch
 URL:		https://lttng.org/
 %{expand:%buildrequires_kernel kernel%%{_alt_kernel}-module-build >= 3:3.0}
@@ -48,14 +49,17 @@ Moduły LTTng 2.x dla jądra Linuksa.\
 \
 %files -n kernel%{_alt_kernel}-lttng\
 %defattr(644,root,root,755)\
-%doc %{pname}-%{version}/{ChangeLog,LICENSE,README.md,TODO}\
+%doc %{pname}-%{version}-%{pre}/{ChangeLog,LICENSE,README.md}\
 %dir /lib/modules/%{_kernel_ver}/kernel/lttng\
 /lib/modules/%{_kernel_ver}/kernel/lttng/lttng-clock.ko*\
+/lib/modules/%{_kernel_ver}/kernel/lttng/lttng-counter-client-percpu-32-modular.ko.*\
+/lib/modules/%{_kernel_ver}/kernel/lttng/lttng-counter-client-percpu-64-modular.ko.*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/lttng-ring-buffer-*.ko*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/lttng-statedump.ko*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/lttng-tracer.ko*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/lttng-wrapper.ko*\
 %dir /lib/modules/%{_kernel_ver}/kernel/lttng/lib\
+/lib/modules/%{_kernel_ver}/kernel/lttng/lib/lttng-counter.ko.*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/lib/lttng-lib-ring-buffer.ko*\
 %dir /lib/modules/%{_kernel_ver}/kernel/lttng/probes\
 /lib/modules/%{_kernel_ver}/kernel/lttng/probes/lttng-kprobes.ko*\
@@ -88,12 +92,12 @@ p=`pwd`\
 %{expand:%create_kernel_packages}
 
 %prep
-%setup -qc
-cd  %{pname}-%{version}
+%setup -qc -n %{name}-%{version}
+cd  %{pname}-%{version}-%{pre}
 %patch0 -p1
 
 %build
-cd  %{pname}-%{version}
+cd  %{pname}-%{version}-%{pre}
 %{expand:%build_kernel_packages}
 
 %install
