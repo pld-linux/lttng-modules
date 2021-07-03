@@ -6,8 +6,8 @@
 # nothing to be placed to debuginfo package
 %define		_enable_debug_packages	0
 
-%define		pre	rc1
-%define		rel	1
+%define		pre	rc2
+%define		rel	2
 %define		pname	lttng-modules
 Summary:	LTTng 2.x kernel modules
 Summary(pl.UTF-8):	Moduły jądra LTTng 2.x
@@ -17,7 +17,7 @@ Release:	%{rel}@%{_kernel_ver_str}
 License:	GPL v2
 Group:		Base/Kernel
 Source0:	https://lttng.org/files/lttng-modules/%{pname}-%{version}-%{pre}.tar.bz2
-# Source0-md5:	487c988fdb10146ca772baf908683980
+# Source0-md5:	2f5998af541a1fce28986ae7b07c2430
 Patch0:		build.patch
 URL:		https://lttng.org/
 %{expand:%buildrequires_kernel kernel%%{_alt_kernel}-module-build >= 3:3.0}
