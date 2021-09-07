@@ -6,8 +6,7 @@
 # nothing to be placed to debuginfo package
 %define		_enable_debug_packages	0
 
-%define		pre	rc2
-%define		rel	2
+%define		rel	3
 %define		pname	lttng-modules
 Summary:	LTTng 2.x kernel modules
 Summary(pl.UTF-8):	Moduły jądra LTTng 2.x
@@ -16,8 +15,8 @@ Version:	2.13.0
 Release:	%{rel}@%{_kernel_ver_str}
 License:	GPL v2
 Group:		Base/Kernel
-Source0:	https://lttng.org/files/lttng-modules/%{pname}-%{version}-%{pre}.tar.bz2
-# Source0-md5:	2f5998af541a1fce28986ae7b07c2430
+Source0:	https://lttng.org/files/lttng-modules/%{pname}-%{version}.tar.bz2
+# Source0-md5:	7f3027cd163f526fd752f3accc89aacb
 Patch0:		build.patch
 URL:		https://lttng.org/
 %{expand:%buildrequires_kernel kernel%%{_alt_kernel}-module-build >= 3:3.0}
@@ -49,7 +48,7 @@ Moduły LTTng 2.x dla jądra Linuksa.\
 \
 %files -n kernel%{_alt_kernel}-lttng\
 %defattr(644,root,root,755)\
-%doc %{pname}-%{version}-%{pre}/{ChangeLog,LICENSE,README.md}\
+%doc %{pname}-%{version}/{ChangeLog,LICENSE,README.md}\
 %dir /lib/modules/%{_kernel_ver}/kernel/lttng\
 /lib/modules/%{_kernel_ver}/kernel/lttng/lttng-clock.ko*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/lttng-counter-client-percpu-32-modular.ko.*\
@@ -93,11 +92,11 @@ p=`pwd`\
 
 %prep
 %setup -qc -n %{name}-%{version}
-cd  %{pname}-%{version}-%{pre}
+cd  %{pname}-%{version}
 %patch0 -p1
 
 %build
-cd  %{pname}-%{version}-%{pre}
+cd  %{pname}-%{version}
 %{expand:%build_kernel_packages}
 
 %install
