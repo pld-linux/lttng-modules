@@ -1,0 +1,190 @@
+From 45240b53fb037012a86613150fd5dc7e151fb7d1 Mon Sep 17 00:00:00 2001
+From: Michael Jeanson <mjeanson@efficios.com>
+Date: Mon, 4 Apr 2022 16:28:26 -0400
+Subject: [PATCH 12/13] fix: KVM: x86: Unexport kvm_x86_ops (v5.18)
+
+See upstream commit :
+
+  commit dfc4e6ca041135217c07ebcd102b6694cea22856
+  Author: Sean Christopherson <seanjc@google.com>
+  Date:   Fri Jan 28 00:51:56 2022 +0000
+
+    KVM: x86: Unexport kvm_x86_ops
+
+    Drop the export of kvm_x86_ops now it is no longer referenced by SVM or
+    VMX.  Disallowing access to kvm_x86_ops is very desirable as it prevents
+    vendor code from incorrectly modifying hooks after they have been set by
+    kvm_arch_hardware_setup(), and more importantly after each function's
+    associated static_call key has been updated.
+
+    No functional change intended.
+
+Change-Id: Icee959a984570f95ab9b71354225b5aeecea7da0
+Signed-off-by: Michael Jeanson <mjeanson@efficios.com>
+Signed-off-by: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+---
+ .../events/arch/x86/kvm/trace.h               | 47 +++++++++++-
+ include/wrapper/kvm-x86.h                     | 72 +++++++++++++++++++
+ 2 files changed, 117 insertions(+), 2 deletions(-)
+ create mode 100644 include/wrapper/kvm-x86.h
+
+diff --git a/include/instrumentation/events/arch/x86/kvm/trace.h b/include/instrumentation/events/arch/x86/kvm/trace.h
+index 42e5b94d..0d6c4e33 100644
+--- a/include/instrumentation/events/arch/x86/kvm/trace.h
++++ b/include/instrumentation/events/arch/x86/kvm/trace.h
+@@ -9,6 +9,7 @@
+ #include <asm/clocksource.h>
+ #endif
+ #include <lttng/kernel-version.h>
++#include <wrapper/kvm-x86.h>
+ #include <../arch/x86/kvm/lapic.h>
+ #include <../arch/x86/kvm/kvm_cache_regs.h>
+ 
+@@ -115,7 +116,40 @@ LTTNG_TRACEPOINT_EVENT_MAP(kvm_apic, kvm_x86_apic,
+ /*
+  * Tracepoint for kvm guest exit:
+  */
+-#if (LTTNG_LINUX_VERSION_CODE >= LTTNG_KERNEL_VERSION(5,16,0))
++#if (LTTNG_LINUX_VERSION_CODE >= LTTNG_KERNEL_VERSION(5,18,0))
++LTTNG_TRACEPOINT_EVENT_CODE_MAP(kvm_exit, kvm_x86_exit,
++	TP_PROTO(struct kvm_vcpu *vcpu, u32 isa),
++	TP_ARGS(vcpu, isa),
++
++	TP_locvar(
++		u32 exit_reason;
++		u64 info1, info2;
++		u32 intr_info, error_code;
++	),
++
++	TP_code_pre(
++		lttng_kvm_x86_get_exit_info(vcpu,
++				&tp_locvar->exit_reason,
++				&tp_locvar->info1,
++				&tp_locvar->info2,
++				&tp_locvar->intr_info,
++				&tp_locvar->error_code);
++	),
++
++	TP_FIELDS(
++		ctf_integer(unsigned int, exit_reason, tp_locvar->exit_reason)
++		ctf_integer(unsigned long, guest_rip, kvm_rip_read(vcpu))
++		ctf_integer(u32, isa, isa)
++		ctf_integer(u64, info1, tp_locvar->info1)
++		ctf_integer(u64, info2, tp_locvar->info2)
++		ctf_integer(u32, intr_info, tp_locvar->intr_info)
++		ctf_integer(u32, error_code, tp_locvar->error_code)
++		ctf_integer(unsigned int, vcpu_id, vcpu->vcpu_id)
++	),
++
++	TP_code_post()
++)
++#elif (LTTNG_LINUX_VERSION_CODE >= LTTNG_KERNEL_VERSION(5,16,0))
+ LTTNG_TRACEPOINT_EVENT_CODE_MAP(kvm_exit, kvm_x86_exit,
+ 	TP_PROTO(struct kvm_vcpu *vcpu, u32 isa),
+ 	TP_ARGS(vcpu, isa),
+@@ -535,7 +569,7 @@ LTTNG_TRACEPOINT_EVENT_MAP(kvm_emulate_insn, kvm_x86_emulate_insn,
+ 				vcpu->arch.emulate_ctxt.fetch.data)
+ 		ctf_array(__u8, insn, vcpu->arch.emulate_ctxt.fetch.data, 15)
+ 		ctf_integer(__u8, flags, kei_decode_mode(vcpu->arch.emulate_ctxt.mode))
+-#else
++#elif (LTTNG_LINUX_VERSION_CODE < LTTNG_KERNEL_VERSION(5,18,0))
+ 		ctf_integer(__u64, rip, vcpu->arch.emulate_ctxt->_eip -
+ 				(vcpu->arch.emulate_ctxt->fetch.ptr -
+ 					vcpu->arch.emulate_ctxt->fetch.data))
+@@ -544,6 +578,15 @@ LTTNG_TRACEPOINT_EVENT_MAP(kvm_emulate_insn, kvm_x86_emulate_insn,
+ 				vcpu->arch.emulate_ctxt->fetch.data)
+ 		ctf_array(__u8, insn, vcpu->arch.emulate_ctxt->fetch.data, 15)
+ 		ctf_integer(__u8, flags, kei_decode_mode(vcpu->arch.emulate_ctxt->mode))
++#else
++		ctf_integer(__u64, rip, vcpu->arch.emulate_ctxt->_eip -
++				(vcpu->arch.emulate_ctxt->fetch.ptr -
++					vcpu->arch.emulate_ctxt->fetch.data))
++		ctf_integer(__u32, csbase, lttng_kvm_x86_get_segment_base(vcpu, VCPU_SREG_CS))
++		ctf_integer(__u8, len, vcpu->arch.emulate_ctxt->fetch.ptr -
++				vcpu->arch.emulate_ctxt->fetch.data)
++		ctf_array(__u8, insn, vcpu->arch.emulate_ctxt->fetch.data, 15)
++		ctf_integer(__u8, flags, kei_decode_mode(vcpu->arch.emulate_ctxt->mode))
+ #endif
+ 		ctf_integer(__u8, failed, failed)
+ 	)
+diff --git a/include/wrapper/kvm-x86.h b/include/wrapper/kvm-x86.h
+new file mode 100644
+index 00000000..2007aebd
+--- /dev/null
++++ b/include/wrapper/kvm-x86.h
+@@ -0,0 +1,72 @@
++/* SPDX-License-Identifier: (GPL-2.0-only or LGPL-2.1-only)
++ *
++ * wrapper/kvm-x86.h
++ *
++ * Copyright (C) 2022 Michael Jeanson <mjeanson@efficios.com>
++ */
++
++#ifndef _LTTNG_WRAPPER_KVM_X86_H
++#define _LTTNG_WRAPPER_KVM_X86_H
++
++#include <linux/kvm_host.h>
++#include <lttng/kernel-version.h>
++
++#if LTTNG_LINUX_VERSION_CODE >= LTTNG_KERNEL_VERSION(5,18,0)
++
++#ifdef CONFIG_KALLSYMS_ALL
++#include <linux/kallsyms.h>
++#include <wrapper/kallsyms.h>
++
++static struct kvm_x86_ops *kvm_x86_ops_sym;
++
++static inline
++void lttng_kvm_x86_get_exit_info(
++		struct kvm_vcpu *vcpu, u32 *reason,
++		u64 *info1, u64 *info2,
++		u32 *exit_int_info, u32 *exit_int_info_err_code)
++{
++	if (!kvm_x86_ops_sym)
++		kvm_x86_ops_sym =
++			(void *) kallsyms_lookup_dataptr("kvm_x86_ops");
++
++	if (kvm_x86_ops_sym) {
++		kvm_x86_ops_sym->get_exit_info(vcpu, reason, info1, info2,
++				exit_int_info, exit_int_info_err_code);
++	} else {
++		printk_once(KERN_WARNING "LTTng: kvm_x86_ops symbol lookup failed.\n");
++	}
++}
++
++static inline
++u64 lttng_kvm_x86_get_segment_base(struct kvm_vcpu *vcpu, int seg)
++{
++	if (!kvm_x86_ops_sym)
++		kvm_x86_ops_sym =
++			(void *) kallsyms_lookup_dataptr("kvm_x86_ops");
++
++	if (kvm_x86_ops_sym) {
++		return kvm_x86_ops_sym->get_segment_base(vcpu, seg);
++	} else {
++		printk_once(KERN_WARNING "LTTng: kvm_x86_ops symbol lookup failed.\n");
++		return 0;
++	}
++}
++
++/*
++ * Canary function to check for 'kvm_x86_ops' at compile time.
++ *
++ * From 'arch/x86/include/asm/kvm_host.h':
++ *
++ *   extern struct kvm_x86_ops kvm_x86_ops;;
++ */
++static inline
++unsigned int __canary__kvm_x86_ops(void)
++{
++	return kvm_x86_ops.vm_size;
++}
++
++#endif /* CONFIG_KALLSYMS_ALL */
++
++#endif
++
++#endif /* _LTTNG_WRAPPER_KVM_X86_H */
+-- 
+2.36.1
+
