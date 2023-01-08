@@ -1,0 +1,51 @@
+--- lttng-modules-2.13.7/include/instrumentation/events/jbd2.h.orig	2022-09-30 23:11:06.000000000 +0200
++++ lttng-modules-2.13.7/include/instrumentation/events/jbd2.h	2023-01-08 14:25:51.090957315 +0100
+@@ -15,6 +15,14 @@
+ struct transaction_run_stats_s;
+ #endif
+ 
++#ifndef _TRACE_JBD2_TID_T
++#if (LTTNG_LINUX_VERSION_CODE >= LTTNG_KERNEL_VERSION(6,1,4)) || (LTTNG_LINUX_VERSION_CODE >= LTTNG_KERNEL_VERSION(6,0,18) && LTTNG_LINUX_VERSION_CODE < LTTNG_KERNEL_VERSION(6,1,0))
++#define _TRACE_JBD2_TID_T tid_t
++#else
++#define _TRACE_JBD2_TID_T unsigned long
++#endif
++#endif
++
+ LTTNG_TRACEPOINT_EVENT(jbd2_checkpoint,
+ 
+ 	TP_PROTO(journal_t *journal, int result),
+@@ -102,14 +110,14 @@
+ )
+ 
+ LTTNG_TRACEPOINT_EVENT(jbd2_run_stats,
+-	TP_PROTO(dev_t dev, unsigned long tid,
++	TP_PROTO(dev_t dev, _TRACE_JBD2_TID_T tid,
+ 		 struct transaction_run_stats_s *stats),
+ 
+ 	TP_ARGS(dev, tid, stats),
+ 
+ 	TP_FIELDS(
+ 		ctf_integer(dev_t, dev, dev)
+-		ctf_integer(unsigned long, tid, tid)
++		ctf_integer(_TRACE_JBD2_TID_T, tid, tid)
+ 		ctf_integer(unsigned long, wait, stats->rs_wait)
+ 		ctf_integer(unsigned long, running, stats->rs_running)
+ 		ctf_integer(unsigned long, locked, stats->rs_locked)
+@@ -122,14 +130,14 @@
+ )
+ 
+ LTTNG_TRACEPOINT_EVENT(jbd2_checkpoint_stats,
+-	TP_PROTO(dev_t dev, unsigned long tid,
++	TP_PROTO(dev_t dev, _TRACE_JBD2_TID_T tid,
+ 		 struct transaction_chp_stats_s *stats),
+ 
+ 	TP_ARGS(dev, tid, stats),
+ 
+ 	TP_FIELDS(
+ 		ctf_integer(dev_t, dev, dev)
+-		ctf_integer(unsigned long, tid, tid)
++		ctf_integer(_TRACE_JBD2_TID_T, tid, tid)
+ 		ctf_integer(unsigned long, chp_time, stats->cs_chp_time)
+ 		ctf_integer(__u32, forced_to_close, stats->cs_forced_to_close)
+ 		ctf_integer(__u32, written, stats->cs_written)
