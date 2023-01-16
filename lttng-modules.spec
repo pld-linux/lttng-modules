@@ -19,7 +19,6 @@ Source0:	https://lttng.org/files/lttng-modules/%{pname}-%{version}.tar.bz2
 # Source0-md5:	6bc042ac2d67437639d6c77f6ea45f29
 Patch0:		build.patch
 Patch1:		kernel-6.1.patch
-Patch2:		jbd2-tid-type.patch
 URL:		https://lttng.org/
 %{expand:%buildrequires_kernel kernel%%{_alt_kernel}-module-build >= 3:3.0}
 %{?with_kernelsrc:%{expand:%buildrequires_kernel kernel%%{_alt_kernel}-source >= 3:3.0}}
@@ -97,7 +96,6 @@ p=`pwd`\
 cd %{pname}-%{version}
 %patch0 -p1
 %patch1 -p1
-%patch2 -p1
 
 %build
 cd  %{pname}-%{version}
