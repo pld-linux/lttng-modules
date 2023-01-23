@@ -1,25 +1,30 @@
---- lttng-modules-2.13.8/include/instrumentation/events/jbd2.h.orig	2023-01-13 22:08:06.000000000 +0100
-+++ lttng-modules-2.13.8/include/instrumentation/events/jbd2.h	2023-01-16 13:39:32.430153844 +0100
-@@ -28,6 +28,7 @@
+diff --git a/include/instrumentation/events/jbd2.h b/include/instrumentation/events/jbd2.h
+index d5d8ea0c..be217ffa 100644
+--- a/include/instrumentation/events/jbd2.h
++++ b/include/instrumentation/events/jbd2.h
+@@ -28,6 +28,8 @@ LTTNG_TRACEPOINT_EVENT(jbd2_checkpoint,
  )
  
  #if (LTTNG_LINUX_VERSION_CODE >= LTTNG_KERNEL_VERSION(6,2,0) \
++	|| LTTNG_KERNEL_RANGE(5,4,229, 5,5,0) \
 +	|| LTTNG_KERNEL_RANGE(5,10,163, 5,11,0) \
  	|| LTTNG_KERNEL_RANGE(5,15,87, 5,16,0) \
  	|| LTTNG_KERNEL_RANGE(6,0,18, 6,1,0) \
  	|| LTTNG_KERNEL_RANGE(6,1,4, 6,2,0))
-@@ -96,6 +97,7 @@
+@@ -96,6 +98,8 @@ LTTNG_TRACEPOINT_EVENT_INSTANCE(jbd2_commit, jbd2_drop_transaction,
  #endif
  
  #if (LTTNG_LINUX_VERSION_CODE >= LTTNG_KERNEL_VERSION(6,2,0) \
++	|| LTTNG_KERNEL_RANGE(5,4,229, 5,5,0) \
 +	|| LTTNG_KERNEL_RANGE(5,10,163, 5,11,0) \
  	|| LTTNG_KERNEL_RANGE(5,15,87, 5,16,0) \
  	|| LTTNG_KERNEL_RANGE(6,0,18, 6,1,0) \
  	|| LTTNG_KERNEL_RANGE(6,1,4, 6,2,0))
-@@ -138,6 +140,7 @@
+@@ -138,6 +142,8 @@ LTTNG_TRACEPOINT_EVENT(jbd2_submit_inode_data,
  )
  
  #if (LTTNG_LINUX_VERSION_CODE >= LTTNG_KERNEL_VERSION(6,2,0) \
++	|| LTTNG_KERNEL_RANGE(5,4,229, 5,5,0) \
 +	|| LTTNG_KERNEL_RANGE(5,10,163, 5,11,0) \
  	|| LTTNG_KERNEL_RANGE(5,15,87, 5,16,0) \
  	|| LTTNG_KERNEL_RANGE(6,0,18, 6,1,0) \
