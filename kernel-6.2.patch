@@ -1,0 +1,38 @@
+commit 4e4fb933c8a6b85ac3d5a60a417726e20e2cc695
+Author: Michael Jeanson <mjeanson@efficios.com>
+Date:   Mon Jan 16 15:01:51 2023 -0500
+
+    fix: btrfs: move accessor helpers into accessors.h (v6.2)
+    
+    See upstream commit :
+    
+      commit 07e81dc94474eb62705c6f96d9ab1a5a797b8703
+      Author: Josef Bacik <josef@toxicpanda.com>
+      Date:   Wed Oct 19 10:51:00 2022 -0400
+    
+        btrfs: move accessor helpers into accessors.h
+    
+        This is a large patch, but because they're all macros it's impossible to
+        split up.  Simply copy all of the item accessors in ctree.h and paste
+        them in accessors.h, and then update any files to include the header so
+        everything compiles.
+    
+    Change-Id: I1f0876dd8b7a8687f6802b60c3e3baabd017cc52
+    Signed-off-by: Michael Jeanson <mjeanson@efficios.com>
+    Signed-off-by: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+
+diff --git a/include/instrumentation/events/btrfs.h b/include/instrumentation/events/btrfs.h
+index 4664d45a..3e4ac56d 100644
+--- a/include/instrumentation/events/btrfs.h
++++ b/include/instrumentation/events/btrfs.h
+@@ -9,6 +9,10 @@
+ #include <linux/writeback.h>
+ #include <lttng/kernel-version.h>
+ 
++#if (LTTNG_LINUX_VERSION_CODE >= LTTNG_KERNEL_VERSION(6,2,0))
++#include <../fs/btrfs/accessors.h>
++#endif
++
+ #ifndef _TRACE_BTRFS_DEF_
+ #define _TRACE_BTRFS_DEF_
+ struct btrfs_root;
