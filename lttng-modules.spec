@@ -6,19 +6,18 @@
 # nothing to be placed to debuginfo package
 %define		_enable_debug_packages	0
 
-%define		rel	2
+%define		rel	1
 %define		pname	lttng-modules
 Summary:	LTTng 2.x kernel modules
 Summary(pl.UTF-8):	Moduły jądra LTTng 2.x
 Name:		%{pname}%{_alt_kernel}
-Version:	2.13.15
+Version:	2.13.16
 Release:	%{rel}@%{_kernel_ver_str}
 License:	GPL v2
 Group:		Base/Kernel
 Source0:	https://lttng.org/files/lttng-modules/%{pname}-%{version}.tar.bz2
-# Source0-md5:	61e4ac15e8e4e9d3625293cc92e7f0f2
+# Source0-md5:	be5353fb62d7679fff4e393f65002b3f
 Patch0:		build.patch
-Patch1:		kernel-5.15.171.patch
 URL:		https://lttng.org/
 %{expand:%buildrequires_kernel kernel%%{_alt_kernel}-module-build >= 3:3.0}
 %{?with_kernelsrc:%{expand:%buildrequires_kernel kernel%%{_alt_kernel}-source >= 3:3.0}}
@@ -95,7 +94,6 @@ p=`pwd`\
 %setup -qc -n %{name}-%{version}
 cd %{pname}-%{version}
 %patch0 -p1
-%patch1 -p1
 
 %build
 cd %{pname}-%{version}
