@@ -6,7 +6,7 @@
 # nothing to be placed to debuginfo package
 %define		_enable_debug_packages	0
 
-%define		rel	1
+%define		rel	2
 %define		pname	lttng-modules
 Summary:	LTTng 2.x kernel modules
 Summary(pl.UTF-8):	Moduły jądra LTTng 2.x
@@ -18,6 +18,7 @@ Group:		Base/Kernel
 Source0:	https://lttng.org/files/lttng-modules/%{pname}-%{version}.tar.bz2
 # Source0-md5:	be5353fb62d7679fff4e393f65002b3f
 Patch0:		build.patch
+Patch1:		sched_stat_runtime.patch
 URL:		https://lttng.org/
 %{expand:%buildrequires_kernel kernel%%{_alt_kernel}-module-build >= 3:3.0}
 %{?with_kernelsrc:%{expand:%buildrequires_kernel kernel%%{_alt_kernel}-source >= 3:3.0}}
@@ -93,7 +94,8 @@ p=`pwd`\
 %prep
 %setup -qc -n %{name}-%{version}
 cd %{pname}-%{version}
-%patch0 -p1
+%patch -P 0 -p1
+%patch -P 1 -p1
 
 %build
 cd %{pname}-%{version}
