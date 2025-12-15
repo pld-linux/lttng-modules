@@ -11,12 +11,12 @@
 Summary:	LTTng 2.x kernel modules
 Summary(pl.UTF-8):	Moduły jądra LTTng 2.x
 Name:		%{pname}%{_alt_kernel}
-Version:	2.13.19
+Version:	2.14.3
 Release:	%{rel}@%{_kernel_ver_str}
 License:	GPL v2
 Group:		Base/Kernel
 Source0:	https://lttng.org/files/lttng-modules/%{pname}-%{version}.tar.bz2
-# Source0-md5:	c9fa6cf233f670e0f46a415e8ca7d34b
+# Source0-md5:	7e5275373a10c439c8f5e260f9b24c06
 Patch0:		build.patch
 URL:		https://lttng.org/
 %{expand:%buildrequires_kernel kernel%%{_alt_kernel}-module-build >= 3:3.0}
@@ -61,10 +61,7 @@ Moduły LTTng 2.x dla jądra Linuksa.\
 /lib/modules/%{_kernel_ver}/kernel/lttng/lib/lttng-counter.ko.*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/lib/lttng-lib-ring-buffer.ko*\
 %dir /lib/modules/%{_kernel_ver}/kernel/lttng/probes\
-/lib/modules/%{_kernel_ver}/kernel/lttng/probes/lttng-kprobes.ko*\
-/lib/modules/%{_kernel_ver}/kernel/lttng/probes/lttng-kretprobes.ko*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/probes/lttng-probe-*.ko*\
-/lib/modules/%{_kernel_ver}/kernel/lttng/probes/lttng-uprobes.ko*\
 %dir /lib/modules/%{_kernel_ver}/kernel/lttng/tests\
 /lib/modules/%{_kernel_ver}/kernel/lttng/tests/lttng-clock-plugin-test.ko*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/tests/lttng-test.ko*\
