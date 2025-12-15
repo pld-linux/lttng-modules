@@ -52,7 +52,9 @@ Moduły LTTng 2.x dla jądra Linuksa.\
 %dir /lib/modules/%{_kernel_ver}/kernel/lttng\
 /lib/modules/%{_kernel_ver}/kernel/lttng/lttng-clock.ko*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/lttng-counter-client-percpu-32-modular.ko.*\
+%ifnarch %{ix86}
 /lib/modules/%{_kernel_ver}/kernel/lttng/lttng-counter-client-percpu-64-modular.ko.*\
+%endif
 /lib/modules/%{_kernel_ver}/kernel/lttng/lttng-ring-buffer-*.ko*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/lttng-statedump.ko*\
 /lib/modules/%{_kernel_ver}/kernel/lttng/lttng-tracer.ko*\
