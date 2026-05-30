@@ -30,7 +30,7 @@ LTTng 2.x kernel modules.
 %description -l pl.UTF-8
 Moduły jądra LTTng 2.x.
 
-%define	kernel_pkg()\
+%define	kernel_pkg() \
 %package -n kernel%{_alt_kernel}-lttng\
 Summary:	LTTng 2.x modules for Linux kernel\
 Summary(pl.UTF-8):	Moduły LTTng 2.x dla jądra Linuksa\
@@ -75,7 +75,7 @@ Moduły LTTng 2.x dla jądra Linuksa.\
 %depmod %{_kernel_ver}\
 %{nil}
 
-%define build_kernel_pkg()\
+%define build_kernel_pkg() \
 %{__make} clean \\\
 	KERNELDIR=%{_kernelsrcdir}\
 %{__make} \\\
